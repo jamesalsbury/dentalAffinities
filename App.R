@@ -3,10 +3,43 @@ library(dentalAffinities)
 library(MASS)
 library(openxlsx)
 library(ggbiplot)
+library(shinyjs)
 
 #source("functions.R")
 
 ui <- fluidPage(
+  useShinyjs(),
+  titlePanel("Dental Affinities"),
+  mainPanel(
+    
+    tabsetPanel(
+      
+      tabPanel("Descriptives and data preparation",
+               sidebarLayout(
+                 sidebarPanel = sidebarPanel(
+                   selectInput("valueType", label = "Scores/dichotomised values",
+                               choices = c("Scores" = "scores", "Dichotomised" = "dichotomised")),
+                   selectInput("groupType", label = "Group", 
+                               choices = ""),
+                   checkboxInput("traitCorrelation", label = "Check for trait correlation"),
+                   checkboxInput("kendallTau", label = "Kendall tau-B"),
+                   hidden(numericInput("KTInput", label = "Value of KT", value = 0.499)),
+                   checkboxInput("traitVariation", label = "Traits showing variation"),
+                   hidden(numericInput("traitInput", label = "Value of MD", value = 0))
+                 ),
+                 mainPanel = mainPanel(
+                   
+                 )
+               )
+               
+               ),
+      tabPanel("Analysis and visualisation",
+               
+               
+               )
+    )
+  )
+)
   fluidRow(class = "myRow1",
            column(width = 3, h2("Dental Affinities"),
                   p("Link to the article, contact email"),
