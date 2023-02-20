@@ -1,0 +1,14 @@
+name: dentalAffinities
+title: dentalAffinities
+username:
+account: jamesalsbury
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 8343212
+bundleId: 6858214
+url: https://jamesalsbury.shinyapps.io/dentalAffinities/
+when: 1676645970.57653
+lastSyncTime: 1676645970.57653
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: exampleData.xlsx

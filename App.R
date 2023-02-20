@@ -17,6 +17,7 @@ ui <- fluidPage(
       tabPanel("Descriptives and data preparation",
                sidebarLayout(
                  sidebarPanel = sidebarPanel(
+                   fileInput("descriptivesFile", label = "Please upload a descriptives file here"),
                    selectInput("valueType", label = "Scores/dichotomised values",
                                choices = c("Scores" = "scores", "Dichotomised" = "dichotomised")),
                    selectInput("groupType", label = "Group", 
@@ -25,7 +26,8 @@ ui <- fluidPage(
                    checkboxInput("kendallTau", label = "Kendall tau-B"),
                    hidden(numericInput("KTInput", label = "Value of KT", value = 0.499)),
                    checkboxInput("traitVariation", label = "Traits showing variation"),
-                   hidden(numericInput("traitInput", label = "Value of MD", value = 0))
+                   hidden(numericInput("traitInput", label = "Value of MD", value = 0)),
+                   actionButton("runDescriptives", "Run")
                  ),
                  mainPanel = mainPanel(
                    
@@ -34,101 +36,125 @@ ui <- fluidPage(
                
                ),
       tabPanel("Analysis and visualisation",
+               sidebarLayout(
+                 sidebarPanel = sidebarPanel(
+                   fileInput("descriptivesFile", label = "Please upload a data file here"),
+                   selectInput("method_sel", label = "Method selection",
+                               choices = c("MMD - Anscombe" = "MMD_ANS_0",
+                                           "MMD - Freeman & Tukey" = "MMD_FRE_0",
+                                           "MMD - Anscombe (Freeman & Tukey correction)" = "MMD_ANS_FRE",
+                                           "MMD - Anscombe (Grewal correction)" = "MMD_ANS_GRE",
+                                           "MMD - Freeman & Tukey (Freeman & Tukey correction)" = "MMD_FRE_FRE",
+                                           "MMD - Freeman & Tukey (Grewal correction)" = "MMD_FRE_GRE",
+                                           "Mahalanobis - tetrachoric correlation (TMD)" = "MAH_TMD"
+                               ),
+                               selected = "MMD_ANS"),
+                   selectInput("groupType", label = "Group", 
+                               choices = ""),
+                   checkboxInput("minNumberCheck", label = "Minimum number of observations/groups"),
+                   hidden(numericInput("minNumber", label = "Min", value = 10)),
+                   checkboxInput("remTraitsCheck", label = "Remove traits exhibiting no variation"),
+                   hidden(numericInput("remTraits", label = "MD<", value = 0)),
+                   checkboxInput("dicData", label = "Dichotomise data"),
+                   hidden(selectInput("dicDataInput", label = "Group", choices = c("User" = "user",
+                                                                                   "Balanced" = "balanced",
+                                                                                   "Chi-Square" = "Chi2"),
+                                      selected = "user")),
+                   actionButton("runAnalysis", "Run")
+                 ),
+                 mainPanel = mainPanel(
+                   
+                 )
+               )
                
-               
+               ),
+      tabPanel("Help",
                )
     )
   )
 )
-  fluidRow(class = "myRow1",
-           column(width = 3, h2("Dental Affinities"),
-                  p("Link to the article, contact email"),
-                  checkboxInput("button",label = "Example data", value = TRUE)),
-           column(width = 3,
-                  selectInput("method_sel", label = "Method selection",
-                              choices = c("MMD - Anscombe" = "MMD_ANS_0",
-                                          "MMD - Freeman & Tukey" = "MMD_FRE_0",
-                                          "MMD - Anscombe (Freeman & Tukey correction)" = "MMD_ANS_FRE",
-                                          "MMD - Anscombe (Grewal correction)" = "MMD_ANS_GRE",
-                                          "MMD - Freeman & Tukey (Freeman & Tukey correction)" = "MMD_FRE_FRE",
-                                          "MMD - Freeman & Tukey (Grewal correction)" = "MMD_FRE_GRE",
-                                          "Mahalanobis - tetrachoric correlation (TMD)" = "MAH_TMD"
-                              ),
-                              selected = "MMD_ANS"),
-                  fileInput('file1', 'Upload your data as an XLSX file',
-                            accept=c('.csv', 'application/xlsx',
-                                     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                                     '.xlsx'))
-           ),
-           column(width = 3,
-                  selectInput("sex_handling", label = "Sex handling",
-                              choices = c("All individuals" = "ALL",
-                                          "Males only" = "MALE",
-                                          "Females only" = "FEMALE",
-                                          "[not ready] Sample-wise selection" = "SAMPLE",
-                                          "[not ready] Predefined selection" = "PRE"
-                              ), selected = "ALL"),
-                  selectInput("binarisation", label = "Binarization",
-                              choices = c("User defined" = "USER",
-                                          "Balanced" = "BALANCED",
-                                          "Highest chi2 statistics" = "HIGH"
-                              ),
-                              selected = "BALANCED")),
-           column(width = 3,
-                  selectInput("init_trait", label = "Initial trait selection",
-                              choices = c("All traits" = "ALL",
-                                          "Only right side" = "RIGHT",
-                                          "Only left side" = "LEFT",
-                                          "Maximum score" = "MAX",
-                                          "Minimum score" = "MIN",
-                                          "Average score" = "AVG"
-                              ),
-                              selected = "ALL"),
-                  selectInput("post_trait", label = "Post-hoc trait selection",
-                              choices = c("All traits" = "ALL",
-                                          "[not ready] Traits that differentiate" = "DIFF",
-                                          "[not ready] Traits with high inter-sample variance" = "VAR"
-                              ),
-                              selected = "ALL"))
-  ),
-  fluidRow(
-    column(width = 4,
-           plotOutput('ggMDS', width = 400, height = 400),
-           plotOutput('ggCzekanowski', width = 400, height = 400)
-    ),
-    column(width = 4,
-           plotOutput('ggClust', width = 400, height = 400),
-           plotOutput('ggPCA', width = 400, height = 400)),
-    column(width = 4,
-           downloadLink('downloadData', '* Download all matrices in a single XLSX file *'),
-           br(),
-           downloadLink('downloadFigures', '* Download all figures in a single PDF file *'),
-           #           br(),
-           #           downloadLink('downloadReport', '* Download dignostic report as an PDF file *'),
-           br(),
-           br(),
-           p("Distance matrix"),
-           verbatimTextOutput('distSummary'),
-           p("SD matrix"),
-           verbatimTextOutput('sdSummary'),
-           p("Significance matrix"),
-           verbatimTextOutput('signifSummary'))
-  ),
-  tags$head(tags$style("
-      .myRow1{background-color: #dddddd;}
-      .myRow3{height:3px; background-color: #dddddd;}
-     "
-  ))
-)
+#   fluidRow(class = "myRow1",
+#            column(width = 3, h2("Dental Affinities"),
+#                   p("Link to the article, contact email"),
+#                   checkboxInput("button",label = "Example data", value = TRUE)),
+#            column(width = 3,
+#                   selectInput("method_sel", label = "Method selection",
+#                               choices = c("MMD - Anscombe" = "MMD_ANS_0",
+#                                           "MMD - Freeman & Tukey" = "MMD_FRE_0",
+#                                           "MMD - Anscombe (Freeman & Tukey correction)" = "MMD_ANS_FRE",
+#                                           "MMD - Anscombe (Grewal correction)" = "MMD_ANS_GRE",
+#                                           "MMD - Freeman & Tukey (Freeman & Tukey correction)" = "MMD_FRE_FRE",
+#                                           "MMD - Freeman & Tukey (Grewal correction)" = "MMD_FRE_GRE",
+#                                           "Mahalanobis - tetrachoric correlation (TMD)" = "MAH_TMD"
+#                               ),
+#                               selected = "MMD_ANS"),
+#                   fileInput('file1', 'Upload your data as an XLSX file',
+#                             accept=c('.csv', 'application/xlsx',
+#                                      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+#                                      '.xlsx'))
+#            ),
+#            column(width = 3,
+#                   selectInput("sex_handling", label = "Sex handling",
+#                               choices = c("All individuals" = "ALL",
+#                                           "Males only" = "MALE",
+#                                           "Females only" = "FEMALE",
+#                                           "[not ready] Sample-wise selection" = "SAMPLE",
+#                                           "[not ready] Predefined selection" = "PRE"
+#                               ), selected = "ALL"),
+#                   selectInput("binarisation", label = "Binarization",
+#                               choices = c("User defined" = "USER",
+#                                           "Balanced" = "BALANCED",
+#                                           "Highest chi2 statistics" = "HIGH"
+#                               ),
+#                               selected = "BALANCED")),
+#            column(width = 3,
+#                   selectInput("init_trait", label = "Initial trait selection",
+#                               choices = c("All traits" = "ALL",
+#                                           "Only right side" = "RIGHT",
+#                                           "Only left side" = "LEFT",
+#                                           "Maximum score" = "MAX",
+#                                           "Minimum score" = "MIN",
+#                                           "Average score" = "AVG"
+#                               ),
+#                               selected = "ALL"),
+#                   selectInput("post_trait", label = "Post-hoc trait selection",
+#                               choices = c("All traits" = "ALL",
+#                                           "[not ready] Traits that differentiate" = "DIFF",
+#                                           "[not ready] Traits with high inter-sample variance" = "VAR"
+#                               ),
+#                               selected = "ALL"))
+#   ),
+#   fluidRow(
+#     column(width = 4,
+#            plotOutput('ggMDS', width = 400, height = 400),
+#            plotOutput('ggCzekanowski', width = 400, height = 400)
+#     ),
+#     column(width = 4,
+#            plotOutput('ggClust', width = 400, height = 400),
+#            plotOutput('ggPCA', width = 400, height = 400)),
+#     column(width = 4,
+#            downloadLink('downloadData', '* Download all matrices in a single XLSX file *'),
+#            br(),
+#            downloadLink('downloadFigures', '* Download all figures in a single PDF file *'),
+#            #           br(),
+#            #           downloadLink('downloadReport', '* Download dignostic report as an PDF file *'),
+#            br(),
+#            br(),
+#            p("Distance matrix"),
+#            verbatimTextOutput('distSummary'),
+#            p("SD matrix"),
+#            verbatimTextOutput('sdSummary'),
+#            p("Significance matrix"),
+#            verbatimTextOutput('signifSummary'))
+#   ),
+#   tags$head(tags$style("
+#       .myRow1{background-color: #dddddd;}
+#       .myRow3{height:3px; background-color: #dddddd;}
+#      "
+#   ))
+# )
 
 server <- function(input, output, session) {
-  
-  v <- reactiveValues(upload = NULL, exampleFile = NULL)
-  
-  observe({
-    v$exampleFile <- read.xlsx("exampleData.xlsx")
-    
-  })
   
   v <- reactiveValues(upload = NULL)
   
@@ -136,6 +162,45 @@ server <- function(input, output, session) {
     v$upload <- "yes"
   })
   
+  observe({
+    if (input$kendallTau==F){
+      shinyjs::hide(id = "KTInput")
+    } else if (input$kendallTau==T){
+      shinyjs::show(id = "KTInput")
+    }
+  })
+
+  observe({
+    if (input$traitVariation==F){
+      shinyjs::hide(id = "traitInput")
+    } else if (input$traitVariation==T){
+      shinyjs::show(id = "traitInput")
+    }
+  })
+  
+  observe({
+    if (input$minNumberCheck==F){
+      shinyjs::hide(id = "minNumber")
+    } else if (input$minNumberCheck==T){
+      shinyjs::show(id = "minNumber")
+    }
+  })
+  
+  observe({
+    if (input$remTraitsCheck==F){
+      shinyjs::hide(id = "remTraits")
+    } else if (input$remTraitsCheck==T){
+      shinyjs::show(id = "remTraits")
+    }
+  })
+  
+  observe({
+    if (input$dicData==F){
+      shinyjs::hide(id = "dicDataInput")
+    } else if (input$dicData==T){
+      shinyjs::show(id = "dicDataInput")
+    }
+  })
   
   rawdataInput <- reactive({
     inFile <- input$file1
