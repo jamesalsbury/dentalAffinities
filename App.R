@@ -18,15 +18,10 @@ ui <- fluidPage(
                sidebarLayout(
                  sidebarPanel = sidebarPanel(
                    fileInput("descriptivesFile", label = "Please upload a descriptives file here"),
-                   selectInput("valueType", label = "Scores/dichotomised values",
-                               choices = c("Scores" = "scores", "Dichotomised" = "dichotomised")),
-                   selectInput("groupType", label = "Group", 
-                               choices = ""),
-                   checkboxInput("traitCorrelation", label = "Check for trait correlation"),
-                   checkboxInput("kendallTau", label = "Kendall tau-B"),
-                   hidden(numericInput("KTInput", label = "Value of KT", value = 0.499)),
-                   checkboxInput("traitVariation", label = "Traits showing variation"),
-                   hidden(numericInput("traitInput", label = "Value of MD", value = 0)),
+                   selectInput("groupTrait", label = "Grouping for trait frequencies",
+                               choices = c("No grouping" = "nogroup", "Group1" = "group 1", "Group2" = "group 2", "Group 1 + Group 2" = "bothgroups")),
+                   checkboxInput("traitCorrelation", label = "Check for trait correlation (Kendall tau-B"),
+                   hidden(numericInput("KTInput", label = "Flag correlations at > ", value = 0.499)),
                    actionButton("runDescriptives", "Run")
                  ),
                  mainPanel = mainPanel(
@@ -49,8 +44,6 @@ ui <- fluidPage(
                                            "Mahalanobis - tetrachoric correlation (TMD)" = "MAH_TMD"
                                ),
                                selected = "MMD_ANS"),
-                   selectInput("groupType", label = "Group", 
-                               choices = ""),
                    checkboxInput("minNumberCheck", label = "Minimum number of observations/groups"),
                    hidden(numericInput("minNumber", label = "Min", value = 10)),
                    checkboxInput("remTraitsCheck", label = "Remove traits exhibiting no variation"),
@@ -163,20 +156,13 @@ server <- function(input, output, session) {
   })
   
   observe({
-    if (input$kendallTau==F){
+    if (input$traitCorrelation==F){
       shinyjs::hide(id = "KTInput")
-    } else if (input$kendallTau==T){
+    } else if (input$traitCorrelation==T){
       shinyjs::show(id = "KTInput")
     }
   })
 
-  observe({
-    if (input$traitVariation==F){
-      shinyjs::hide(id = "traitInput")
-    } else if (input$traitVariation==T){
-      shinyjs::show(id = "traitInput")
-    }
-  })
   
   observe({
     if (input$minNumberCheck==F){
