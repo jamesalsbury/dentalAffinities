@@ -56,7 +56,7 @@ ui <- fluidPage(
                    actionButton("runAnalysis", "Run")
                  ),
                  mainPanel = mainPanel(
-                   
+                  tableOutput("descTable") 
                  )
                )
                
@@ -187,6 +187,104 @@ server <- function(input, output, session) {
       shinyjs::show(id = "dicDataInput")
     }
   })
+  
+  observeEvent(input$uploadSample,{
+    v$upload <- "yes"
+  })
+  
+  
+  inputData <- reactive({
+    #Allows the user to upload a control sample
+    
+    if (is.null(v$upload)){
+      return(NULL)
+    } else {
+      chosenFile <- input$uploadSample
+      req(chosenFile)
+      if (endsWith(chosenFile$name, ".xlsx")){
+         descUpload <- read_excel(chosenFile$datapath, sheet = 1)
+      } else if (endsWith(chosenFile$name, "csv")){
+        descUpload <- read.csv(chosenFile$datapath)
+      } else if (endsWith(chosenFile$name, "rds")){
+        descUpload <- readRDS(chosenFile$datapath)
+      }
+      
+      return(descUpload = descUpload)
+    }
+    
+  })
+  
+  doDescriptives <- eventReactive(input$runAnalysis, {
+    
+    
+    thresholdValues <- myData[1,]
+    
+    myData <- myData[-1,]
+    
+    for (i in 4:ncol(myData)){
+      myData1 <- myData %>%
+        filter(!is.na(.[[i]])) %>%
+        count(GROUP1, .[[i]]) 
+      
+      colnames(myData1) <- c("GROUP1", colnames(myData)[i], "n")
+      
+      myData1[2] <- as.numeric(unlist(myData1[2]))
+      
+      uniquelist <- myData$GROUP1 %>%
+        unique()
+      
+      uniquescores <- myData1[2] %>%
+        unique() %>%
+        unlist() %>%
+        sort()
+      
+      newData <- as.data.frame(matrix(ncol = length(uniquelist)+2, nrow = length(uniquescores)))
+      colnames(newData) <- c("Trait", "Score", uniquelist)
+      
+      
+      for (j in 1:length(uniquescores)){
+        newData$Trait[j] <- as.character(colnames(myData)[i])
+        newData$Score[j] <- uniquescores[j]
+      }
+      
+      for (j in 3:(length(uniquelist)+2)){
+        for (k in 1:length(uniquescores)){
+          cname <- colnames(newData)[j]
+          ourScore <- uniquescores[k]
+          ourN <- myData1 %>%
+            filter(GROUP1==cname) %>%
+            filter_at(2, all_vars(.==ourScore)) %>%
+            pull(3)
+          if (identical(ourN, integer(0))){
+            newData[k,j] <- 0
+          } else {
+            newData[k,j] <- ourN
+          }
+        }
+      }
+      if (i==4){
+        finalData <- newData
+      } else {
+        finalData <- rbind(finalData, newData)
+      }
+      
+    }
+    
+    return(finalData = finalData)
+
+  })
+  
+  
+  
+  output$descTable <- renderDataTable({
+    
+    doDescriptives()$finalData
+    
+  })
+  
+  
+  
+  
   
   rawdataInput <- reactive({
     inFile <- input$file1
