@@ -6,21 +6,22 @@ thresholdValues <- myData[1,]
 
 myData <- myData[-1,]
 
+i <- 4
 
- for (i in 4:ncol(myData)){
+for (i in 4:ncol(myData)){
   
-
-
+  
+  
   myData1 <- myData %>%
     filter(!is.na(.[[i]])) %>%
-    count(.[[2]], .[[i]]) 
+    count(.[[3]], .[[i]]) 
   
   
-  colnames(myData1) <- c("GROUP1", colnames(myData)[i], "n")
+  colnames(myData1) <- c("GROUP2", colnames(myData)[i], "n")
   
   myData1[2] <- as.numeric(unlist(myData1[2]))
   
-  uniquelist <- myData$GROUP1 %>%
+  uniquelist <- myData$GROUP2 %>%
     unique()
   
   uniquescores <- myData1[2] %>%
@@ -42,7 +43,7 @@ myData <- myData[-1,]
       cname <- colnames(newData)[j]
       ourScore <- uniquescores[k]
       ourN <- myData1 %>%
-        filter(GROUP1==cname) %>%
+        filter(GROUP2==cname) %>%
         filter_at(2, all_vars(.==ourScore)) %>%
         pull(3)
       if (identical(ourN, integer(0))){
@@ -57,8 +58,8 @@ myData <- myData[-1,]
   } else {
     finalData <- rbind(finalData, newData)
   }
- }
-  
+}
+
 
 
 
