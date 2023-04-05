@@ -4,6 +4,11 @@ library(MASS)
 library(openxlsx)
 library(ggbiplot)
 library(shinyjs)
+library(tidyverse)
+library(readxl)
+library(copula)
+library(tableHTML)
+library(DT)
 
 #source("functions.R")
 
@@ -17,15 +22,24 @@ ui <- fluidPage(
       tabPanel("Descriptives and data preparation",
                sidebarLayout(
                  sidebarPanel = sidebarPanel(
-                   fileInput("descriptivesFile", label = "Please upload a descriptives file here"),
+                   fileInput("descriptivesFile", label = "Please upload a descriptives file here",accept = c(".csv", ".rds", ".xlsx")),
                    selectInput("groupTrait", label = "Grouping for trait frequencies",
                                choices = c("No grouping" = "nogroup", "Group1" = "group 1", "Group2" = "group 2", "Group 1 + Group 2" = "bothgroups")),
-                   checkboxInput("traitCorrelation", label = "Check for trait correlation (Kendall tau-B"),
-                   hidden(numericInput("KTInput", label = "Flag correlations at > ", value = 0.499)),
-                   actionButton("runDescriptives", "Run")
+                   actionButton("runDescriptives", "Run"),
+                   selectInput("corMethod", label = "Correlation method",
+                               choices = c("Kendall" = "kendall", "Pearson" = "pearson", "Spearman" = "spearman")),
+                   actionButton("traitCorrelation", label = "Check for trait correlation"),
+                   hidden(numericInput("corFlag", label = "Flag correlations at > ", value = 0.499)),
+                   br(),
+                   br(),
+                   hidden(downloadButton("downloadDescExcel", "Download Excel")),
+                   br(),
+                   br(),
+                   hidden(downloadButton("downloadDescCSV", "Download CSV"))
                  ),
                  mainPanel = mainPanel(
-                   
+                   tableOutput("descTable"),
+                   dataTableOutput("corTable")
                  )
                )
                
@@ -33,7 +47,7 @@ ui <- fluidPage(
       tabPanel("Analysis and visualisation",
                sidebarLayout(
                  sidebarPanel = sidebarPanel(
-                   fileInput("descriptivesFile", label = "Please upload a data file here"),
+                   fileInput("descriptivesFile1", label = "Please upload a data file here"),
                    selectInput("method_sel", label = "Method selection",
                                choices = c("MMD - Anscombe" = "MMD_ANS_0",
                                            "MMD - Freeman & Tukey" = "MMD_FRE_0",
@@ -56,7 +70,7 @@ ui <- fluidPage(
                    actionButton("runAnalysis", "Run")
                  ),
                  mainPanel = mainPanel(
-                  tableOutput("descTable") 
+                  #tableOutput("descTable") 
                  )
                )
                
@@ -151,15 +165,11 @@ server <- function(input, output, session) {
   
   v <- reactiveValues(upload = NULL)
   
-  observeEvent(input$file1,{
-    v$upload <- "yes"
-  })
-  
   observe({
     if (input$traitCorrelation==F){
-      shinyjs::hide(id = "KTInput")
+      shinyjs::hide(id = "corFlag")
     } else if (input$traitCorrelation==T){
-      shinyjs::show(id = "KTInput")
+      shinyjs::show(id = "corFlag")
     }
   })
 
@@ -188,10 +198,10 @@ server <- function(input, output, session) {
     }
   })
   
-  observeEvent(input$uploadSample,{
+  observeEvent(input$descriptivesFile,{
     v$upload <- "yes"
+   # print("yes")
   })
-  
   
   inputData <- reactive({
     #Allows the user to upload a control sample
@@ -199,38 +209,242 @@ server <- function(input, output, session) {
     if (is.null(v$upload)){
       return(NULL)
     } else {
-      chosenFile <- input$uploadSample
+      chosenFile <- input$descriptivesFile
       req(chosenFile)
       if (endsWith(chosenFile$name, ".xlsx")){
-         descUpload <- read_excel(chosenFile$datapath, sheet = 1)
+        descUpload <- read_excel(chosenFile$datapath, sheet = 1)
       } else if (endsWith(chosenFile$name, "csv")){
         descUpload <- read.csv(chosenFile$datapath)
       } else if (endsWith(chosenFile$name, "rds")){
         descUpload <- readRDS(chosenFile$datapath)
       }
       
-      return(descUpload = descUpload)
+      return(list(descUpload = descUpload))
     }
     
   })
   
-  doDescriptives <- eventReactive(input$runAnalysis, {
+  
+  
+  
+  
+  
+  
+  
+  
+  # inputData <- ob({
+  #   #Allows the user to upload a descriptives file
+  #   
+  #   print(v$upload)
+  #   
+  #   if (is.null(v$upload)){
+  #     print("yes")
+  #     return(NULL)
+  #    
+  #   } else {
+  #     chosenFile <- input$descriptivesFile
+  #     print("yes")
+  #     req(chosenFile)
+  #     if (endsWith(chosenFile$name, ".xlsx")){
+  #        descUpload <- read_excel(chosenFile$datapath, sheet = 1)
+  #     } else if (endsWith(chosenFile$name, ".csv")){
+  #       descUpload <- read.csv(chosenFile$datapath)
+  #     } else if (endsWith(chosenFile$name, ".rds")){
+  #       descUpload <- readRDS(chosenFile$datapath)
+  #     }
+  #     
+  #     print(descUpload)
+  #     
+  #     return(list(descUpload = descUpload))
+  #   }
+  #   
+  # })
+  
+  
+  doCorrelation <- eventReactive(input$traitCorrelation, {
     
-    
-    thresholdValues <- myData[1,]
+    myData <- inputData()$descUpload
     
     myData <- myData[-1,]
     
     for (i in 4:ncol(myData)){
+      myData[,i] <- as.numeric(unlist(myData[,i]))
+    }
+    
+    corMatrix <- cor(myData[,4:44],  use = "pairwise.complete.obs", method=input$corMethod)
+    
+    return(list(corMatrix = corMatrix))
+    
+  })
+  
+  
+  
+  doDescriptives <- eventReactive(input$runDescriptives, {
+    
+    
+    if (input$groupTrait=="nogroup"){
+      
+      myData <- inputData()$descUpload
+      
+      thresholdValues <- myData[1,]
+      
+      myData <- myData[-1,]
+      
+      withProgress(message = 'Rendering table', value = 0, {
+        # Number of times we'll go through the loop
+        loopTimes <- ncol(myData)-4
+        
+        for (i in 4:ncol(myData)){
+          
+          
+          
+          myData1 <- myData %>%
+            filter(!is.na(.[[i]])) %>%
+            count(.[[i]]) 
+          
+          
+          colnames(myData1) <- c(colnames(myData)[i], "n")
+          
+          myData1[1] <- as.numeric(unlist(myData1[1]))
+          
+          
+          uniquescores <- myData1[1] %>%
+            unique() %>%
+            unlist() %>%
+            sort()
+          
+          newData <- as.data.frame(matrix(ncol = 3, nrow = length(uniquescores)))
+          colnames(newData) <- c("Trait", "Score", "n")
+          
+          
+          for (j in 1:length(uniquescores)){
+            newData$Trait[j] <- as.character(colnames(myData)[i])
+            newData$Score[j] <- uniquescores[j]
+          }
+          
+          for (k in 1:length(uniquescores)){
+            cname <- colnames(newData)[3]
+            ourScore <- uniquescores[k]
+            ourN <- myData1 %>%
+              filter_at(1, all_vars(.==ourScore)) %>%
+              pull(2)
+            if (identical(ourN, integer(0))){
+              newData[k,3] <- 0
+            } else {
+              newData[k,3] <- ourN
+            }
+          }
+          if (i==4){
+            finalData <- newData
+          } else {
+            finalData <- rbind(finalData, newData)
+          }
+          
+          incProgress(1/loopTimes)
+          
+        }
+        
+      })
+      
+      return(list(finalData = finalData))
+        
+      
+      
+      
+    }
+    
+    if (input$groupTrait=="group 1"){
+      
+      myData <- inputData()$descUpload
+      
+      thresholdValues <- myData[1,]
+      
+      myData <- myData[-1,]
+      
+      withProgress(message = 'Rendering table', value = 0, {
+        # Number of times we'll go through the loop
+        loopTimes <- ncol(myData)-4
+        
+        for (i in 4:ncol(myData)){
+          myData1 <- myData %>%
+            filter(!is.na(.[[i]])) %>%
+            count(GROUP1, .[[i]]) 
+          
+          colnames(myData1) <- c("GROUP1", colnames(myData)[i], "n")
+          
+          myData1[2] <- as.numeric(unlist(myData1[2]))
+          
+          uniquelist <- myData$GROUP1 %>%
+            unique()
+          
+          uniquescores <- myData1[2] %>%
+            unique() %>%
+            unlist() %>%
+            sort()
+          
+          newData <- as.data.frame(matrix(ncol = length(uniquelist)+2, nrow = length(uniquescores)))
+          colnames(newData) <- c("Trait", "Score", uniquelist)
+          
+          
+          for (j in 1:length(uniquescores)){
+            newData$Trait[j] <- as.character(colnames(myData)[i])
+            newData$Score[j] <- uniquescores[j]
+          }
+          
+          for (j in 3:(length(uniquelist)+2)){
+            for (k in 1:length(uniquescores)){
+              cname <- colnames(newData)[j]
+              ourScore <- uniquescores[k]
+              ourN <- myData1 %>%
+                filter(GROUP1==cname) %>%
+                filter_at(2, all_vars(.==ourScore)) %>%
+                pull(3)
+              if (identical(ourN, integer(0))){
+                newData[k,j] <- 0
+              } else {
+                newData[k,j] <- ourN
+              }
+            }
+          }
+          if (i==4){
+            finalData <- newData
+          } else {
+            finalData <- rbind(finalData, newData)
+          }
+          
+          incProgress(1/loopTimes)
+          
+        }
+      })
+      
+      return(list(finalData = finalData))
+      
+    } else if (input$groupTrait=="group 2"){
+      
+      myData <- inputData()$descUpload
+      
+      thresholdValues <- myData[1,]
+      
+      myData <- myData[-1,]
+      
+      withProgress(message = 'Rendering table', value = 0, {
+        # Number of times we'll go through the loop
+        loopTimes <- ncol(myData)-4
+      
+    for (i in 4:ncol(myData)){
+      
+      
+      
       myData1 <- myData %>%
         filter(!is.na(.[[i]])) %>%
-        count(GROUP1, .[[i]]) 
+        count(.[[3]], .[[i]]) 
       
-      colnames(myData1) <- c("GROUP1", colnames(myData)[i], "n")
+      
+      colnames(myData1) <- c("GROUP2", colnames(myData)[i], "n")
       
       myData1[2] <- as.numeric(unlist(myData1[2]))
       
-      uniquelist <- myData$GROUP1 %>%
+      uniquelist <- myData$GROUP2 %>%
         unique()
       
       uniquescores <- myData1[2] %>%
@@ -252,7 +466,7 @@ server <- function(input, output, session) {
           cname <- colnames(newData)[j]
           ourScore <- uniquescores[k]
           ourN <- myData1 %>%
-            filter(GROUP1==cname) %>%
+            filter(GROUP2==cname) %>%
             filter_at(2, all_vars(.==ourScore)) %>%
             pull(3)
           if (identical(ourN, integer(0))){
@@ -268,20 +482,187 @@ server <- function(input, output, session) {
         finalData <- rbind(finalData, newData)
       }
       
+      incProgress(1/loopTimes)
     }
     
-    return(finalData = finalData)
+    return(list(finalData = finalData))
+    
+    
 
+  })
+    } else if (input$groupTrait=="bothgroups"){
+      
+      myData <- inputData()$descUpload
+      
+      thresholdValues <- myData[1,]
+      
+      myData <- myData[-1,]
+      
+      
+      combinedGroup <- rep(NA, nrow(myData))
+      
+      for (i in 1:nrow(myData)){
+        combinedGroup[i] <- paste0(myData[i,]$GROUP1, "+", myData[i,]$GROUP2)
+      }
+      
+      myData$combinedGroup <- combinedGroup
+      
+      myData <- myData[,c(1:3, ncol(myData), 4:(ncol(myData)-1))]
+      
+      withProgress(message = 'Rendering table', value = 0, {
+        # Number of times we'll go through the loop
+        loopTimes <- ncol(myData)-5
+      
+      for (i in 5:ncol(myData)){
+        
+        myData1 <- myData %>%
+          filter(!is.na(.[[i]])) %>%
+          count(.[[4]],   .[[i]]) 
+        
+        
+        colnames(myData1) <- c("GROUP1+GROUP2", colnames(myData)[i], "n")
+        
+        myData1[2] <- as.numeric(unlist(myData1[2]))
+        
+        uniquelist <- myData$combinedGroup %>%
+          unique()
+        
+        uniquescores <- myData1[2] %>%
+          unique() %>%
+          unlist() %>%
+          sort()
+        
+        newData <- as.data.frame(matrix(ncol = length(uniquelist)+2, nrow = length(uniquescores)))
+        colnames(newData) <- c("Trait", "Score", uniquelist)
+        
+        
+        for (j in 1:length(uniquescores)){
+          newData$Trait[j] <- as.character(colnames(myData)[i])
+          newData$Score[j] <- uniquescores[j]
+        }
+        
+        for (j in 3:(length(uniquelist)+2)){
+          for (k in 1:length(uniquescores)){
+            cname <- colnames(newData)[j]
+            ourScore <- uniquescores[k]
+            ourN <- myData1 %>%
+              filter(`GROUP1+GROUP2`==cname) %>%
+              filter_at(2, all_vars(.==ourScore)) %>%
+              pull(3)
+            if (identical(ourN, integer(0))){
+              newData[k,j] <- 0
+            } else {
+              newData[k,j] <- ourN
+            }
+          }
+        }
+        if (i==5){
+          finalData <- newData
+        } else {
+          finalData <- rbind(finalData, newData)
+        }
+        
+        incProgress(1/loopTimes)
+        
+      }
+      
+      return(list(finalData = finalData))
+      })
+      
+      
+    }
+    
+    
   })
   
   
-  
-  output$descTable <- renderDataTable({
+  output$descTable <- renderTable({
+    
+    shinyjs::show(id = "downloadDescExcel")
+    shinyjs::show(id = "downloadDescCSV")
     
     doDescriptives()$finalData
     
   })
   
+  output$corTable <- renderDataTable({
+    
+    rowCallback <- c(
+      "function(row, data){",
+      "  for(var i=0; i<data.length; i++){",
+      "    if(data[i] === null){",
+      "      $('td:eq('+i+')', row).html('NA')",
+      "        .css({'color': 'rgb(151,151,151)', 'font-style': 'italic'});",
+      "    }",
+      "  }",
+      "}"  
+    )
+    
+   data <-  doCorrelation()$corMatrix
+    
+    datatable(data, options = list(rowCallback = JS(rowCallback))) %>% formatStyle(
+      columns = colnames(data),
+      backgroundColor = styleInterval(c(input$corFlag, 0.99), c('white', 'lightgreen', 'lightblue'))
+    ) %>%
+      formatSignif(
+        columns = colnames(data),
+        digits = 3
+      )
+    
+    
+    
+    
+    
+    # data %>%
+    #   tableHTML(rownames = T) %>%
+    # add_css_conditional_column(conditional = 'between',
+    #                            between = c(0.5, 1),
+    #                            css = list(c('background-color'),
+    #                                       c('blue')),
+    #                            columns = 1:ncol(data))
+    
+  })
+  
+  
+  
+  
+  output$downloadDescExcel <- downloadHandler(
+    filename = function() {
+      "modifiedDesc.xlsx"
+    },
+    
+    content = function(file) {
+      
+      my_workbook <- createWorkbook()
+      
+      addWorksheet(
+        wb = my_workbook,
+        sheetName = "Sheet 1"
+      )
+      
+      writeData(
+        
+        my_workbook,
+        sheet = 1,
+        doDescriptives()$finalData
+      )
+      
+      saveWorkbook(my_workbook, file)
+      
+      
+    }
+    
+  
+  )
+  
+  output$downloadDescCSV <- downloadHandler(
+    filename = function() {
+      "modifiedDesc.csv"
+    },
+    content = function(file) {
+      write.csv(doDescriptives()$finalData, file, row.names = FALSE)
+    }
+  )
   
   
   

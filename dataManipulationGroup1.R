@@ -9,8 +9,6 @@ myData <- myData[-1,]
 
  for (i in 4:ncol(myData)){
   
-
-
   myData1 <- myData %>%
     filter(!is.na(.[[i]])) %>%
     count(.[[2]], .[[i]]) 
