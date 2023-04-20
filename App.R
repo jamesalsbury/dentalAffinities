@@ -6,7 +6,6 @@ library(ggbiplot)
 library(shinyjs)
 library(tidyverse)
 library(readxl)
-library(copula)
 library(tableHTML)
 library(DT)
 
@@ -271,7 +270,14 @@ server <- function(input, output, session) {
       myData[,i] <- as.numeric(unlist(myData[,i]))
     }
     
-    corMatrix <- cor(myData[,4:44],  use = "pairwise.complete.obs", method=input$corMethod)
+    corMatrix <- cor(myData[,4:ncol(myData)],  use = "pairwise.complete.obs", method=input$corMethod)
+    
+    for (i in 4:(ncol(myData)-1)){
+      for (k in (i+1):ncol(myData)){
+        corMatrix[k-3, i-3] <- nrow(na.omit(myData[,c(i, k)]))
+      }
+    }
+  
     
     return(list(corMatrix = corMatrix))
     
@@ -295,7 +301,6 @@ server <- function(input, output, session) {
         loopTimes <- ncol(myData)-4
         
         for (i in 4:ncol(myData)){
-          
           
           
           myData1 <- myData %>%
@@ -602,7 +607,7 @@ server <- function(input, output, session) {
     
     datatable(data, options = list(rowCallback = JS(rowCallback))) %>% formatStyle(
       columns = colnames(data),
-      backgroundColor = styleInterval(c(input$corFlag, 0.99), c('white', 'lightgreen', 'lightblue'))
+      backgroundColor = styleInterval(c(input$corFlag, 0.999, 1.001, 1000), c('white', 'lightgreen', 'lightblue', 'lightyellow', 'red'))
     ) %>%
       formatSignif(
         columns = colnames(data),
