@@ -57,19 +57,52 @@ ui <- fluidPage(
                                            "Mahalanobis - tetrachoric correlation (TMD)" = "MAH_TMD"
                                ),
                                selected = "MMD_ANS"),
+                   selectInput("init_trait", label = "Initial trait selection",
+                               choices = c("All traits" = "ALL",
+                                           "Only right side" = "RIGHT",
+                                           "Only left side" = "LEFT",
+                                           "Maximum score" = "MAX",
+                                           "Minimum score" = "MIN",
+                                           "Average score" = "AVG"
+                               ),
+                               selected = "ALL"),
+                   selectInput("binarisation", label = "Binarization",
+                               choices = c("User defined" = "USER",
+                                           "Balanced" = "BALANCED",
+                                           "Highest chi2 statistics" = "HIGH"
+                               ),
+                               selected = "BALANCED"),
+                   checkboxGroupInput("group_handling1", label = "Group 1 handling",
+                               choices = c("All individuals" = "ALL"
+                               ), selected = "ALL"),
+                   checkboxGroupInput("group_handling2", label = "Group 2 handling",
+                                      choices = c("All individuals" = "ALL"
+                                      ), selected = "ALL"),
                    checkboxInput("minNumberCheck", label = "Minimum number of observations/groups"),
                    hidden(numericInput("minNumber", label = "Min", value = 10)),
                    checkboxInput("remTraitsCheck", label = "Remove traits exhibiting no variation"),
                    hidden(numericInput("remTraits", label = "MD<", value = 0)),
-                   checkboxInput("dicData", label = "Dichotomise data"),
-                   hidden(selectInput("dicDataInput", label = "Group", choices = c("User" = "user",
-                                                                                   "Balanced" = "balanced",
-                                                                                   "Chi-Square" = "Chi2"),
-                                      selected = "user")),
                    actionButton("runAnalysis", "Run")
                  ),
                  mainPanel = mainPanel(
-                  #tableOutput("descTable") 
+                   fluidRow(
+                     column(width = 4,
+                            plotOutput('ggMDS', width = 200, height = 200),
+                            plotOutput('ggCzekanowski', width = 200, height = 200)
+                     ),
+                     column(width = 4,
+                            plotOutput('ggClust', width = 200, height = 200),
+                            plotOutput('ggPCA', width = 200, height = 200)),
+                     column(width = 4,
+                            br(),
+                            br(),
+                            p("Distance matrix"),
+                            verbatimTextOutput('distSummary'),
+                            p("SD matrix"),
+                            verbatimTextOutput('sdSummary'),
+                            p("Significance matrix"),
+                            verbatimTextOutput('signifSummary'))
+                   ),
                  )
                )
                
@@ -189,13 +222,6 @@ server <- function(input, output, session) {
     }
   })
   
-  observe({
-    if (input$dicData==F){
-      shinyjs::hide(id = "dicDataInput")
-    } else if (input$dicData==T){
-      shinyjs::show(id = "dicDataInput")
-    }
-  })
   
   observeEvent(input$descriptivesFile,{
     v$upload <- "yes"
@@ -224,9 +250,7 @@ server <- function(input, output, session) {
   })
   
   
-  
-  
-  
+
   
   
   
@@ -670,18 +694,36 @@ server <- function(input, output, session) {
   )
   
   
+  observe({
+    
+    inFile <- input$descriptivesFile1
+    if (is.null(inFile)) {
+      return(NULL)
+    } else {
+      df <- loadData(inFile$datapath)
+      attr(df, which = "name") = inFile[[1]]
+      df <- df[-1,]
+      uniquenamesgroup1 <- unique(df[,2])
+      
+       
+    }
+    
+    updateCheckboxGroupInput(session, inputId = "group_handling1", choices = uniquenamesgroup1, selected = uniquenamesgroup1)
+    
+    
+  })
+    
   
   
   rawdataInput <- reactive({
-    inFile <- input$file1
-    if (input$button & is.null(inFile)) {
-      df <- v$exampleFile
-    } else {
-      if (is.null(inFile))
+    inFile <- input$descriptivesFile1
+    if (is.null(inFile)) {
         return(NULL)
+    } else {
       df <- loadData(inFile$datapath)
       attr(df, which = "name") = inFile[[1]]
     }
+      
     
     # side handling
     if (input$init_trait == "RIGHT") {
@@ -712,18 +754,12 @@ server <- function(input, output, session) {
       df <- df[,1:(2 + (i-1)/2)]
     }
     
+    
+    
     # binarisation
     THRESHOLD = df[1,]
     if (input$binarisation == "USER") {
       df <- df[-1,]
-    }
-    
-    # sex handling
-    if (input$sex_handling == "MALE") {
-      df <- df[which(df[,3] == "M"),]
-    }
-    if (input$sex_handling == "FEMALE") {
-      df <- df[which(df[,3] == "F"),]
     }
     
     # binarisation
@@ -749,8 +785,43 @@ server <- function(input, output, session) {
           THRESHOLD[1,i] <- median(df[,i], na.rm=TRUE)
         }
       }
-      
+
     }
+    
+    # group handling
+    group1list <- input$group_handling1
+    
+    #print(group1list)
+    
+      for (i in 1:length(group1list)){
+        if (i==1){
+          temp <- df[which(df[,2] == group1list[i]),]
+        } else {
+          temp <- rbind(temp, df[which(df[,2] == group1list[i]),])
+        }
+        
+      }
+      
+      df <- temp
+      
+      uniquenamesgroup2 <- unique(df[,3])
+      
+      updateCheckboxGroupInput(session, inputId = "group_handling2", choices = uniquenamesgroup2, selected = uniquenamesgroup2)
+      
+      group2list <- input$group_handling2
+      
+      for (i in 1:length(group2list)){
+        if (i==1){
+          temp <- df[which(df[,3] == group2list[i]),]
+        } else {
+          temp <- rbind(temp, df[which(df[,3] == group2list[i]),])
+        }
+        
+      }
+      
+      df <- temp
+      
+      
     
     list(df = df, THRESHOLD = THRESHOLD)
   })
@@ -763,7 +834,7 @@ server <- function(input, output, session) {
     # remove without site
     df <- df[!is.na(df[,2]),]
     
-    # binarisation
+    #binarisation
     if (input$binarisation %in% c("USER", "BALANCED", "HIGH")) {
       for (i in 4:ncol(df)) {
         df[,i] <- (df[,i] >= THRESHOLD[1,i]) + 0
