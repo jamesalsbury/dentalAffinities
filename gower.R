@@ -34,7 +34,7 @@ TukeyHSD(betadisper(y, group = myData$GROUP1, add = T))
 
   
   
-  #Percnetage of missing values in the data set
+  #Percentage of missing values in the data set
   sum(is.na(myData[,4:ncol(myData)]))/
   prod(dim(myData[,4:ncol(myData)]))
   

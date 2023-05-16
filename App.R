@@ -216,6 +216,7 @@ ui <- fluidPage(
                             plotOutput('ggClustGower', width = 200, height = 200),
                             plotOutput('ggPCAGower', width = 200, height = 200)),
                      column(width = 4,
+                            uiOutput('percentMD'),
                             br(),
                             br(),
                             p("Distance matrix"),
@@ -1401,7 +1402,7 @@ server <- function(input, output, session) {
   
   observeEvent(input$group_handling1Gower,{
     
-    inFile <- input$descriptivesFile2
+    inFile <- input$descriptivesFile3
     if (is.null(inFile)) {
       return(NULL)
     } else {
@@ -1437,7 +1438,7 @@ server <- function(input, output, session) {
   
   
   rawdataInputGower <- reactive({
-    inFile <- input$descriptivesFile2
+    inFile <- input$descriptivesFile3
     if (is.null(inFile)) {
       return(NULL)
     } else {
@@ -1475,7 +1476,7 @@ server <- function(input, output, session) {
       df <- df[,1:(2 + (i-1)/2)]
     }
     
-    
+    df<-df[which(rowMeans(!is.na(df)) > 0.7), ]
     
     # binarisation
     THRESHOLD = df[1,]
@@ -1560,102 +1561,122 @@ server <- function(input, output, session) {
   })
   
   # get dist
-  getDistGower <- reactive({
-    res <- NULL
+  # getDistGower <- reactive({
+  #   res <- NULL
+  #   
+  #   df <- dataInputGower()
+  #   
+  #   selected <- strsplit(input$method_selGower, split="_")[[1]]
+  #   if (selected[1] == "MMD") {
+  #     theta <- dentalAffinities::theta_Anscombe
+  #     if (selected[2] == "FRE")
+  #       theta <- dentalAffinities::theta_Freeman
+  #     
+  #     thetadiff <- dentalAffinities::thetadiff_uncorrected
+  #     if (selected[3] == "FRE")
+  #       thetadiff <- dentalAffinities::thetadiff_Freeman
+  #     if (selected[3] == "GRE")
+  #       thetadiff <- dentalAffinities::thetadiff_Grewal
+  #     
+  #     tmp <- dentalAffinities::get_Mn_Mp(df)
+  #     res <- dentalAffinities::calculateMMD(data.frame(tmp$Mn), as.data.frame(tmp$Mp), thetadiff, theta)
+  #   }
+  #   if (selected[1] == "MAH") {
+  #     res <- dentalAffinities::calculateD2(df)
+  #   }
+  #   res
+  # })
+  
+  
+  doGowerPlots <- eventReactive(input$runAnalysisGower, {
+    ggMDSGowerPlot <- NA
+    di <- dataInputGower()
+    y <- vegdist(di[,4:ncol(di)], method="gower", na.rm = T)
+    ggMDSGowerPlot <- betadisper(y, group = di$GROUP1, add = T)
+    return(list(ggMDSGowerPlot = ggMDSGowerPlot))
+  })
+  
+  
+  output$percentMD <- renderUI({
     
     df <- dataInputGower()
+    #Percentage of missing values in the data set
+    paste0("The percentage of missing data in your data set is ", round(sum(is.na(df[,4:ncol(df)]))/
+      prod(dim(df[,4:ncol(df)])), 2)*100, "%")
     
-    selected <- strsplit(input$method_selGower, split="_")[[1]]
-    if (selected[1] == "MMD") {
-      theta <- dentalAffinities::theta_Anscombe
-      if (selected[2] == "FRE")
-        theta <- dentalAffinities::theta_Freeman
-      
-      thetadiff <- dentalAffinities::thetadiff_uncorrected
-      if (selected[3] == "FRE")
-        thetadiff <- dentalAffinities::thetadiff_Freeman
-      if (selected[3] == "GRE")
-        thetadiff <- dentalAffinities::thetadiff_Grewal
-      
-      tmp <- dentalAffinities::get_Mn_Mp(df)
-      res <- dentalAffinities::calculateMMD(data.frame(tmp$Mn), as.data.frame(tmp$Mp), thetadiff, theta)
-    }
-    if (selected[1] == "MAH") {
-      res <- dentalAffinities::calculateD2(df)
-    }
-    res
+    
   })
   
   # table
   output$ggMDSGower <- renderPlot({
-    di <- dataInputGower()
+    di <- doGowerPlots()$ggMDSGowerPlot
     if (is.null(di)) {
       return(grid::grid.text('Please, first upload a file with data'))
     }
-    mat <- getDistGower()
-    dentalAffinities::getMDS(mat$MMDMatrix)
+    plot(di)
+    
   })
-  output$ggCzekanowskiGower <- renderPlot({
-    di <- dataInputGower()
-    if (is.null(di)) {
-      return(grid::grid.text('Please, first upload a file with data'))
-    }
-    mat <- getDistGower()
-    dentalAffinities::getCzekanowski(mat$MMDMatrix)
-  })
-  output$ggPCAGower <- renderPlot({
-    di <- dataInputGower()
-    if (is.null(di)) {
-      return(grid::grid.text('Please, first upload a file with data'))
-    }
-    dentalAffinities::getPCA(di)
-  })
-  
-  # table
-  output$ggClustGower <- renderPlot({
-    di <- dataInputGower()
-    if (is.null(di)) {
-      return(grid::grid.text('Please, first upload a file with data'))
-    }
-    mat <- getDistGower()
-    dentalAffinities::getClust(mat$MMDMatrix)
-  })
-  
-  output$distSummaryGower <- renderPrint({
-    di <- dataInputGower()
-    if (is.null(di)) {
-      "Upload data"
-    } else {
-      mat <- getDistGower()$MMDMatrix
-      print(round(mat, 2))
-    }
-  })
-  output$sdSummaryGower <- renderPrint({
-    di <- dataInputGower()
-    if (is.null(di)) {
-      "Upload data"
-    } else {
-      mat <- getDistGower()$SDMatrix
-      if (is.null(mat)) {
-        print("SD matrix not is available")
-      } else {
-        print(round(mat, 2))
-      }
-    }
-  })
-  output$signifSummaryGower <- renderPrint({
-    di <- dataInputGower()
-    if (is.null(di)) {
-      "Upload data"
-    } else {
-      mat <- getDistGower()$SigMatrix
-      if (is.null(mat)) {
-        print("P-values matrix not is available")
-      } else {
-        print(round(mat, 5))
-      }
-    }
-  })
+  # output$ggCzekanowskiGower <- renderPlot({
+  #   di <- dataInputGower()
+  #   if (is.null(di)) {
+  #     return(grid::grid.text('Please, first upload a file with data'))
+  #   }
+  #   mat <- getDistGower()
+  #   dentalAffinities::getCzekanowski(mat$MMDMatrix)
+  # })
+  # output$ggPCAGower <- renderPlot({
+  #   di <- dataInputGower()
+  #   if (is.null(di)) {
+  #     return(grid::grid.text('Please, first upload a file with data'))
+  #   }
+  #   dentalAffinities::getPCA(di)
+  # })
+  # 
+  # # table
+  # output$ggClustGower <- renderPlot({
+  #   di <- dataInputGower()
+  #   if (is.null(di)) {
+  #     return(grid::grid.text('Please, first upload a file with data'))
+  #   }
+  #   mat <- getDistGower()
+  #   dentalAffinities::getClust(mat$MMDMatrix)
+  # })
+  # 
+  # output$distSummaryGower <- renderPrint({
+  #   di <- dataInputGower()
+  #   if (is.null(di)) {
+  #     "Upload data"
+  #   } else {
+  #     mat <- getDistGower()$MMDMatrix
+  #     print(round(mat, 2))
+  #   }
+  # })
+  # output$sdSummaryGower <- renderPrint({
+  #   di <- dataInputGower()
+  #   if (is.null(di)) {
+  #     "Upload data"
+  #   } else {
+  #     mat <- getDistGower()$SDMatrix
+  #     if (is.null(mat)) {
+  #       print("SD matrix not is available")
+  #     } else {
+  #       print(round(mat, 2))
+  #     }
+  #   }
+  # })
+  # output$signifSummaryGower <- renderPrint({
+  #   di <- dataInputGower()
+  #   if (is.null(di)) {
+  #     "Upload data"
+  #   } else {
+  #     mat <- getDistGower()$SigMatrix
+  #     if (is.null(mat)) {
+  #       print("P-values matrix not is available")
+  #     } else {
+  #       print(round(mat, 5))
+  #     }
+  #   }
+  # })
   
   get_Mn_Mp_group_1 <- function(binary_trait_data) {
     colnames(binary_trait_data)[1:3] <- c("id", "group1", "group2")
