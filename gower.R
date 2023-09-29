@@ -1,7 +1,8 @@
 library(vegan)
 library(dplyr)
 
-myData <- nina_sites_modified_21feb
+#myData <- nina_sites_modified_21feb
+myData <- nina_sites_less_missing_data
 
 #myData <- exampleData
 
@@ -10,11 +11,11 @@ THRESHOLD <- myData[1,]
 myData <- myData[-1,]
 
 #Exclude missing values
-myData<-myData[which(rowMeans(!is.na(myData)) > 0.7), ]
+#myData<-myData[which(rowMeans(!is.na(myData)) > 0.7), ]
 #myData<-myData[which(colMeans(!is.na(myData)) > 0.7), ]
 
 
-myData <- myData[!is.na(myData[,2]),]
+#myData <- myData[!is.na(myData[,2]),]
 
 #binarisation
   for (i in 4:ncol(myData)) {
@@ -25,6 +26,8 @@ myData <- myData[!is.na(myData[,2]),]
 y <- vegdist(myData[,4:ncol(myData)], method="gower", na.rm = T)
 
 pairwise.adonis2(y~GROUP1, data = myData, p.adjust = "holm")
+pairwise.adonis2(y~GROUP2, data = myData, p.adjust = "holm")
+
 
 betadisper(y, group = myData$GROUP1, add = T)
 

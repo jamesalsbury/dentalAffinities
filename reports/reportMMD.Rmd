@@ -1,0 +1,24 @@
+---
+title: "`r params$title`"
+date: "`r format(Sys.time(), '%d %B, %Y')`" 
+output: html_document
+params:
+  title: Report
+  plot1: NULL
+  plot2: NULL
+  plot3: NULL
+  plot4: NULL
+  table1: NULL
+  table2: NULL
+  table3: NULL
+---
+
+```{r, echo = F}
+params$plot1
+params$plot2
+params$plot3
+params$plot4
+params$table1
+params$table2
+params$table3
+```

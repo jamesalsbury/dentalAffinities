@@ -11,8 +11,6 @@ library(DT)
 library(vegan)
 library(pairwiseAdonis)
 
-#source("functions.R")
-
 ui <- fluidPage(
   useShinyjs(),
   titlePanel("Dental Affinities"),
@@ -26,21 +24,15 @@ ui <- fluidPage(
                    fileInput("descriptivesFile", label = "Please upload a descriptives file here",accept = c(".csv", ".rds", ".xlsx")),
                    selectInput("groupTrait", label = "Grouping for trait frequencies",
                                choices = c("No grouping" = "nogroup", "Group1" = "group 1", "Group2" = "group 2", "Group 1 + Group 2" = "bothgroups")),
-                   actionButton("runDescriptives", "Run"),
                    selectInput("corMethod", label = "Correlation method",
                                choices = c("Kendall" = "kendall", "Pearson" = "pearson", "Spearman" = "spearman")),
-                   actionButton("traitCorrelation", label = "Check for trait correlation"),
-                   hidden(numericInput("corFlag", label = "Flag correlations at > ", value = 0.499)),
-                   br(),
-                   br(),
-                   hidden(downloadButton("downloadDescExcel", "Download Excel")),
-                   br(),
-                   br(),
-                   hidden(downloadButton("downloadDescCSV", "Download CSV"))
+                   hidden(numericInput("corFlag", label = "Flag correlations at > ", value = 0.499))
                  ),
                  mainPanel = mainPanel(
                    tableOutput("descTable"),
-                   dataTableOutput("corTable")
+                   downloadButton("downloaddDescTable", "Download Descriptives table"),
+                   dataTableOutput("corTable"),
+                   downloadButton("downloaddCorTable", "Download Correlation table")
                  )
                )
                
@@ -48,7 +40,7 @@ ui <- fluidPage(
       tabPanel("Analysis - MMD",
                sidebarLayout(
                  sidebarPanel = sidebarPanel(
-                   fileInput("descriptivesFile1", label = "Please upload a data file here"),
+                   fileInput("MMDFile", label = "Please upload a data file here", accept = c(".csv", ".rds", ".xlsx")),
                    selectInput("method_selMMD", label = "Method selection",
                                choices = c("MMD - Anscombe" = "MMD_ANS_0",
                                            "MMD - Freeman & Tukey" = "MMD_FRE_0",
@@ -57,7 +49,7 @@ ui <- fluidPage(
                                            "MMD - Freeman & Tukey (Freeman & Tukey correction)" = "MMD_FRE_FRE",
                                            "MMD - Freeman & Tukey (Grewal correction)" = "MMD_FRE_GRE"
                                ),
-                               selected = "MMD_ANS"),
+                               selected = "MMD_ANS_0"),
                    selectInput("init_traitMMD", label = "Initial trait selection",
                                choices = c("All traits" = "ALL",
                                            "Only right side" = "RIGHT",
@@ -83,40 +75,38 @@ ui <- fluidPage(
                                       ), selected = "ALL"),
                    checkboxGroupInput("group_handling2MMD", label = "Group 2 handling",
                                       choices = c("All individuals" = "ALL"
-                                      ), selected = "ALL"),
-                   checkboxInput("minNumberCheckMMD", label = "Minimum number of observations/groups"),
-                   hidden(numericInput("minNumberMMD", label = "Min", value = 10)),
-                   checkboxInput("remTraitsCheckMMD", label = "Remove traits exhibiting no variation"),
-                   hidden(numericInput("remTraitsMMD", label = "MD<", value = 0)),
-                   actionButton("runAnalysisMMD", "Run")
+                                      ), selected = "ALL")
                  ),
                  mainPanel = mainPanel(
                    fluidRow(
                      column(width = 4,
-                            plotOutput('ggMDSMMD', width = 200, height = 200),
-                            plotOutput('ggCzekanowskiMMD', width = 200, height = 200)
-                     ),
-                     column(width = 4,
-                            plotOutput('ggClustMMD', width = 200, height = 200),
-                            plotOutput('ggPCAMMD', width = 200, height = 200)),
-                     column(width = 4,
-                            br(),
-                            br(),
-                            p("Distance matrix"),
-                            verbatimTextOutput('distSummaryMMD'),
-                            p("SD matrix"),
-                            verbatimTextOutput('sdSummaryMMD'),
-                            p("Significance matrix"),
-                            verbatimTextOutput('signifSummaryMMD'))
-                   ),
+                            plotOutput('ggMDSMMD', width = 600, height = 400),
+                            downloadButton("downloadggMDSMMD", "Download MDS diagram"),
+                            plotOutput('ggCzekanowskiMMD', width = 600, height = 400),
+                            downloadButton("downloadggCzekanowskiMMD", "Download Czekanowski diagram"),
+                            plotOutput('ggClustMMD', width = 600, height = 400),
+                            downloadButton("downloadggClustMMD", "Download dendrogram"),
+                            plotOutput('ggPCAMMD', width = 600, height = 400),
+                            downloadButton("downloadggPCAMMD", "Download PCA plot"),
+                     br(),
+                     p("Distance matrix"),
+                     tableOutput('distSummaryMMD'),
+                     downloadButton("downloaddistSummaryMMD", "Download distance matrix"),
+                     p("SD matrix"),
+                     tableOutput('sdSummaryMMD'),
+                     downloadButton("downloadsdSummaryMMD", "Download SD matrix"),
+                     p("Significance matrix"),
+                     tableOutput('signifSummaryMMD'),
+                     downloadButton("downloadsignifSummaryMMD", "Download significance matrix")
+                     ))
+                   )
                  )
-               )
                
       ),
       tabPanel("Analysis - Mahalanobis",
                sidebarLayout(
                  sidebarPanel = sidebarPanel(
-                   fileInput("descriptivesFile2", label = "Please upload a data file here"),
+                   fileInput("MahalanobisFile", label = "Please upload a data file here", accept = c(".csv", ".rds", ".xlsx")),
                    selectInput("method_selMahalanobis", label = "Method selection",
                                choices = c("Mahalanobis - tetrachoric correlation (TMD)" = "MAH_TMD"
                                ),
@@ -136,37 +126,40 @@ ui <- fluidPage(
                                            "Highest chi2 statistics" = "HIGH"
                                ),
                                selected = "BALANCED"),
+                   selectInput("groupChoiceMahalanobis", label = "Plots show",
+                               choices = c("Group 1" = "group1",
+                                           "Group 2" = "group2",
+                                           "Group 1 + Group 2" = "bothgroups"),
+                               selected = "group1"),
                    checkboxGroupInput("group_handling1Mahalanobis", label = "Group 1 handling",
                                       choices = c("All individuals" = "ALL"
                                       ), selected = "ALL"),
                    checkboxGroupInput("group_handling2Mahalanobis", label = "Group 2 handling",
                                       choices = c("All individuals" = "ALL"
-                                      ), selected = "ALL"),
-                   checkboxInput("minNumberCheckMahalanobis", label = "Minimum number of observations/groups"),
-                   hidden(numericInput("minNumberMahalanobis", label = "Min", value = 10)),
-                   checkboxInput("remTraitsCheckMahalanobis", label = "Remove traits exhibiting no variation"),
-                   hidden(numericInput("remTraitsMahalanobis", label = "MD<", value = 0)),
-                   actionButton("runAnalysisMahalanobis", "Run")
+                                      ), selected = "ALL")
                  ),
                  mainPanel = mainPanel(
                    fluidRow(
                      column(width = 4,
-                            plotOutput('ggMDSMahalanobis', width = 200, height = 200),
-                            plotOutput('ggCzekanowskiMahalanobis', width = 200, height = 200)
-                     ),
-                     column(width = 4,
-                            plotOutput('ggClustMahalanobis', width = 200, height = 200),
-                            plotOutput('ggPCAMahalanobis', width = 200, height = 200)),
-                     column(width = 4,
-                            br(),
+                            plotOutput('ggMDSMahalanobis', width = 600, height = 400),
+                            downloadButton("downloadggMDSMahalanobis", "Download MDS diagram"),
+                            plotOutput('ggCzekanowskiMahalanobis', width = 600, height = 400),
+                            downloadButton("downloadggCzekanowskiMahalanobis", "Download Czekanowski diagram"),
+                            plotOutput('ggClustMahalanobis', width = 600, height = 400),
+                            downloadButton("downloadggClustMahalanobis", "Download Dendrogram"),
+                            plotOutput('ggPCAMahalanobis', width = 600, height = 400),
+                            downloadButton("downloadggPCAMahalanobis", "Download PCA plot"),
                             br(),
                             p("Distance matrix"),
-                            verbatimTextOutput('distSummaryMahalanobis'),
+                            tableOutput('distSummaryMahalanobis'),
+                            downloadButton("downloaddistSummaryMahalanobis", "Download distance matrix"),
                             p("SD matrix"),
-                            verbatimTextOutput('sdSummaryMahalanobis'),
+                            tableOutput('sdSummaryMahalanobis'),
+                            downloadButton("downloadsdSummaryMahalanobis", "Download SD matrix"),
                             p("Significance matrix"),
-                            verbatimTextOutput('signifSummaryMahalanobis'))
-                   ),
+                            tableOutput('signifSummaryMahalanobis'),
+                            downloadButton("downloadsignifSummaryMahalanobis", "Download significance matrix")
+                     ))
                  )
                )
                
@@ -174,7 +167,7 @@ ui <- fluidPage(
       tabPanel("Analysis - Gower",
                sidebarLayout(
                  sidebarPanel = sidebarPanel(
-                   fileInput("descriptivesFile3", label = "Please upload a data file here"),
+                   fileInput("GowerFile", label = "Please upload a data file here", accept = c(".csv", ".rds", ".xlsx")),
                    selectInput("method_selGower", label = "Method selection",
                                choices = c("Gower" = "gower"
                                ),
@@ -194,38 +187,42 @@ ui <- fluidPage(
                                            "Highest chi2 statistics" = "HIGH"
                                ),
                                selected = "BALANCED"),
+                   selectInput("groupChoiceGower", label = "Plots show",
+                               choices = c("Group 1" = "group1",
+                                           "Group 2" = "group2",
+                                           "Group 1 + Group 2" = "bothgroups"),
+                               selected = "group1"),
                    checkboxGroupInput("group_handling1Gower", label = "Group 1 handling",
                                       choices = c("All individuals" = "ALL"
                                       ), selected = "ALL"),
                    checkboxGroupInput("group_handling2Gower", label = "Group 2 handling",
                                       choices = c("All individuals" = "ALL"
-                                      ), selected = "ALL"),
-                   checkboxInput("minNumberCheckGower", label = "Minimum number of observations/groups"),
-                   hidden(numericInput("minNumberGower", label = "Min", value = 10)),
-                   checkboxInput("remTraitsCheckGower", label = "Remove traits exhibiting no variation"),
-                   hidden(numericInput("remTraitsGower", label = "MD<", value = 0)),
-                   actionButton("runAnalysisGower", "Run")
+                                      ), selected = "ALL")
                  ),
                  mainPanel = mainPanel(
                    fluidRow(
                      column(width = 4,
-                            plotOutput('ggMDSGower', width = 200, height = 200),
-                            plotOutput('ggCzekanowskiGower', width = 200, height = 200)
-                     ),
-                     column(width = 4,
-                            plotOutput('ggClustGower', width = 200, height = 200),
-                            plotOutput('ggPCAGower', width = 200, height = 200)),
-                     column(width = 4,
-                            uiOutput('percentMD'),
-                            br(),
+                            plotOutput('ggMDSGower', width = 600, height = 400),
+                            downloadButton("downloadggMDSGower", "Download MDS diagram"),
+                            plotOutput('ggClustGower', width = 600, height = 400),
+                            downloadButton("downloadggClustGower", "Download Dendrogram"),
                             br(),
                             p("Distance matrix"),
-                            verbatimTextOutput('distSummaryGower'),
+                            tableOutput('distSummaryGower'),
+                            downloadButton("downloaddistSummaryGower", "Download distance matrix"),
                             p("SD matrix"),
-                            verbatimTextOutput('sdSummaryGower'),
+                            tableOutput('sdSummaryGower'),
+                            downloadButton("downloadsdSummaryGower", "Download SD matrix"),
                             p("Significance matrix"),
-                            verbatimTextOutput('signifSummaryGower'))
-                   ),
+                            tableOutput('signifSummaryGower'),
+                            downloadButton("downloadsignifSummaryGower", "Download significance matrix"),
+                            textOutput("permDispGower"),
+                            downloadButton("downloadpermDispGower", "Download perm disp"),
+                            textOutput("pairwiseAdonisGower"),
+                            downloadButton("downloadpairwiseAdonisGower", "Download pairwise adonis")
+                            
+                            
+                     ))
                  )
                )
                
@@ -235,126 +232,22 @@ ui <- fluidPage(
     )
   )
 )
-#   fluidRow(class = "myRow1",
-#            column(width = 3, h2("Dental Affinities"),
-#                   p("Link to the article, contact email"),
-#                   checkboxInput("button",label = "Example data", value = TRUE)),
-#            column(width = 3,
-#                   selectInput("method_sel", label = "Method selection",
-#                               choices = c("MMD - Anscombe" = "MMD_ANS_0",
-#                                           "MMD - Freeman & Tukey" = "MMD_FRE_0",
-#                                           "MMD - Anscombe (Freeman & Tukey correction)" = "MMD_ANS_FRE",
-#                                           "MMD - Anscombe (Grewal correction)" = "MMD_ANS_GRE",
-#                                           "MMD - Freeman & Tukey (Freeman & Tukey correction)" = "MMD_FRE_FRE",
-#                                           "MMD - Freeman & Tukey (Grewal correction)" = "MMD_FRE_GRE",
-#                                           "Mahalanobis - tetrachoric correlation (TMD)" = "MAH_TMD"
-#                               ),
-#                               selected = "MMD_ANS"),
-#                   fileInput('file1', 'Upload your data as an XLSX file',
-#                             accept=c('.csv', 'application/xlsx',
-#                                      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-#                                      '.xlsx'))
-#            ),
-#            column(width = 3,
-#                   selectInput("sex_handling", label = "Sex handling",
-#                               choices = c("All individuals" = "ALL",
-#                                           "Males only" = "MALE",
-#                                           "Females only" = "FEMALE",
-#                                           "[not ready] Sample-wise selection" = "SAMPLE",
-#                                           "[not ready] Predefined selection" = "PRE"
-#                               ), selected = "ALL"),
-#                   selectInput("binarisation", label = "Binarization",
-#                               choices = c("User defined" = "USER",
-#                                           "Balanced" = "BALANCED",
-#                                           "Highest chi2 statistics" = "HIGH"
-#                               ),
-#                               selected = "BALANCED")),
-#            column(width = 3,
-#                   selectInput("init_trait", label = "Initial trait selection",
-#                               choices = c("All traits" = "ALL",
-#                                           "Only right side" = "RIGHT",
-#                                           "Only left side" = "LEFT",
-#                                           "Maximum score" = "MAX",
-#                                           "Minimum score" = "MIN",
-#                                           "Average score" = "AVG"
-#                               ),
-#                               selected = "ALL"),
-#                   selectInput("post_trait", label = "Post-hoc trait selection",
-#                               choices = c("All traits" = "ALL",
-#                                           "[not ready] Traits that differentiate" = "DIFF",
-#                                           "[not ready] Traits with high inter-sample variance" = "VAR"
-#                               ),
-#                               selected = "ALL"))
-#   ),
-#   fluidRow(
-#     column(width = 4,
-#            plotOutput('ggMDS', width = 400, height = 400),
-#            plotOutput('ggCzekanowski', width = 400, height = 400)
-#     ),
-#     column(width = 4,
-#            plotOutput('ggClust', width = 400, height = 400),
-#            plotOutput('ggPCA', width = 400, height = 400)),
-#     column(width = 4,
-#            downloadLink('downloadData', '* Download all matrices in a single XLSX file *'),
-#            br(),
-#            downloadLink('downloadFigures', '* Download all figures in a single PDF file *'),
-#            #           br(),
-#            #           downloadLink('downloadReport', '* Download dignostic report as an PDF file *'),
-#            br(),
-#            br(),
-#            p("Distance matrix"),
-#            verbatimTextOutput('distSummary'),
-#            p("SD matrix"),
-#            verbatimTextOutput('sdSummary'),
-#            p("Significance matrix"),
-#            verbatimTextOutput('signifSummary'))
-#   ),
-#   tags$head(tags$style("
-#       .myRow1{background-color: #dddddd;}
-#       .myRow3{height:3px; background-color: #dddddd;}
-#      "
-#   ))
-# )
+
 
 server <- function(input, output, session) {
   
-  v <- reactiveValues(upload = NULL)
-  
-  observe({
-    if (input$traitCorrelation==F){
-      shinyjs::hide(id = "corFlag")
-    } else if (input$traitCorrelation==T){
-      shinyjs::show(id = "corFlag")
-    }
-  })
-  
-  
-  observe({
-    if (input$minNumberCheckMMD==F){
-      shinyjs::hide(id = "minNumber")
-    } else if (input$minNumberCheckMMD==T){
-      shinyjs::show(id = "minNumber")
-    }
-  })
-  
-  observe({
-    if (input$remTraitsCheckMMD==F){
-      shinyjs::hide(id = "remTraits")
-    } else if (input$remTraitsCheckMMD==T){
-      shinyjs::show(id = "remTraits")
-    }
-  })
+  v <- reactiveValues(descUpload = NULL)
   
   
   observeEvent(input$descriptivesFile,{
-    v$upload <- "yes"
-    # print("yes")
+    v$descUpload <- "yes"
   })
   
-  inputData <- reactive({
+  
+  inputDescData <- reactive({
     #Allows the user to upload a control sample
     
-    if (is.null(v$upload)){
+    if (is.null(v$descUpload)){
       return(NULL)
     } else {
       chosenFile <- input$descriptivesFile
@@ -372,44 +265,14 @@ server <- function(input, output, session) {
     
   })
   
+
   
   
-  
-  
-  
-  
-  # inputData <- ob({
-  #   #Allows the user to upload a descriptives file
-  #   
-  #   print(v$upload)
-  #   
-  #   if (is.null(v$upload)){
-  #     print("yes")
-  #     return(NULL)
-  #    
-  #   } else {
-  #     chosenFile <- input$descriptivesFile
-  #     print("yes")
-  #     req(chosenFile)
-  #     if (endsWith(chosenFile$name, ".xlsx")){
-  #        descUpload <- read_excel(chosenFile$datapath, sheet = 1)
-  #     } else if (endsWith(chosenFile$name, ".csv")){
-  #       descUpload <- read.csv(chosenFile$datapath)
-  #     } else if (endsWith(chosenFile$name, ".rds")){
-  #       descUpload <- readRDS(chosenFile$datapath)
-  #     }
-  #     
-  #     print(descUpload)
-  #     
-  #     return(list(descUpload = descUpload))
-  #   }
-  #   
-  # })
-  
-  
-  doCorrelation <- eventReactive(input$traitCorrelation, {
+  doCorrelation <- function(){
     
-    myData <- inputData()$descUpload
+    myData <- inputDescData()$descUpload
+    
+    if (is.null(myData)) return(NULL)
     
     myData <- myData[-1,]
     
@@ -428,92 +291,24 @@ server <- function(input, output, session) {
     
     return(list(corMatrix = corMatrix))
     
-  })
+  }
   
   
   
-  doDescriptives <- eventReactive(input$runDescriptives, {
+  doDescriptives <- function(){
     
+    
+    myData <- inputDescData()$descUpload
+    
+    if (is.null(myData)) return(NULL)
     
     if (input$groupTrait=="nogroup"){
-      
-      myData <- inputData()$descUpload
-      
+
       thresholdValues <- myData[1,]
       
       myData <- myData[-1,]
       
-      withProgress(message = 'Rendering table', value = 0, {
-        # Number of times we'll go through the loop
-        loopTimes <- ncol(myData)-4
-        
-        for (i in 4:ncol(myData)){
-          
-          
-          myData1 <- myData %>%
-            filter(!is.na(.[[i]])) %>%
-            count(.[[i]]) 
-          
-          
-          colnames(myData1) <- c(colnames(myData)[i], "n")
-          
-          myData1[1] <- as.numeric(unlist(myData1[1]))
-          
-          
-          uniquescores <- myData1[1] %>%
-            unique() %>%
-            unlist() %>%
-            sort()
-          
-          newData <- as.data.frame(matrix(ncol = 3, nrow = length(uniquescores)))
-          colnames(newData) <- c("Trait", "Score", "n")
-          
-          
-          for (j in 1:length(uniquescores)){
-            newData$Trait[j] <- as.character(colnames(myData)[i])
-            newData$Score[j] <- uniquescores[j]
-          }
-          
-          for (k in 1:length(uniquescores)){
-            cname <- colnames(newData)[3]
-            ourScore <- uniquescores[k]
-            ourN <- myData1 %>%
-              filter_at(1, all_vars(.==ourScore)) %>%
-              pull(2)
-            if (identical(ourN, integer(0))){
-              newData[k,3] <- 0
-            } else {
-              newData[k,3] <- ourN
-            }
-          }
-          if (i==4){
-            finalData <- newData
-          } else {
-            finalData <- rbind(finalData, newData)
-          }
-          
-          incProgress(1/loopTimes)
-          
-        }
-        
-      })
-      
-      return(list(finalData = finalData))
-      
-      
-      
-      
-    }
-    
-    if (input$groupTrait=="group 1"){
-      
-      myData <- inputData()$descUpload
-      
-      thresholdValues <- myData[1,]
-      
-      myData <- myData[-1,]
-      
-      withProgress(message = 'Rendering table', value = 0, {
+      withProgress(message = 'Rendering output', value = 0, {
         # Number of times we'll go through the loop
         loopTimes <- ncol(myData)-4
         
@@ -571,15 +366,84 @@ server <- function(input, output, session) {
       
       return(list(finalData = finalData))
       
-    } else if (input$groupTrait=="group 2"){
       
-      myData <- inputData()$descUpload
+    }
+    
+    if (input$groupTrait=="group 1"){
+      
       
       thresholdValues <- myData[1,]
       
       myData <- myData[-1,]
       
-      withProgress(message = 'Rendering table', value = 0, {
+      withProgress(message = 'Rendering output', value = 0, {
+        # Number of times we'll go through the loop
+        loopTimes <- ncol(myData)-4
+        
+        for (i in 4:ncol(myData)){
+          myData1 <- myData %>%
+            filter(!is.na(.[[i]])) %>%
+            count(GROUP1, .[[i]]) 
+          
+          colnames(myData1) <- c("GROUP1", colnames(myData)[i], "n")
+          
+          myData1[2] <- as.numeric(unlist(myData1[2]))
+          
+          uniquelist <- myData$GROUP1 %>%
+            unique()
+          
+          uniquescores <- myData1[2] %>%
+            unique() %>%
+            unlist() %>%
+            sort()
+          
+          newData <- as.data.frame(matrix(ncol = length(uniquelist)+2, nrow = length(uniquescores)))
+          colnames(newData) <- c("Trait", "Score", uniquelist)
+          
+          
+          for (j in 1:length(uniquescores)){
+            newData$Trait[j] <- as.character(colnames(myData)[i])
+            newData$Score[j] <- uniquescores[j]
+          }
+          
+          for (j in 3:(length(uniquelist)+2)){
+            for (k in 1:length(uniquescores)){
+              cname <- colnames(newData)[j]
+              ourScore <- uniquescores[k]
+              ourN <- myData1 %>%
+                filter(GROUP1==cname) %>%
+                filter_at(2, all_vars(.==ourScore)) %>%
+                pull(3)
+              if (identical(ourN, integer(0))){
+                newData[k,j] <- 0
+              } else {
+                newData[k,j] <- ourN
+              }
+            }
+          }
+          if (i==4){
+            finalData <- newData
+          } else {
+            finalData <- rbind(finalData, newData)
+          }
+          
+          incProgress(1/loopTimes)
+          
+        }
+      })
+      
+      return(list(finalData = finalData))
+      
+      
+    } else if (input$groupTrait=="group 2"){
+      
+      inputDescData()$descUpload
+      
+      thresholdValues <- myData[1,]
+      
+      myData <- myData[-1,]
+      
+      withProgress(message = 'Rendering output', value = 0, {
         # Number of times we'll go through the loop
         loopTimes <- ncol(myData)-4
         
@@ -644,8 +508,6 @@ server <- function(input, output, session) {
       })
     } else if (input$groupTrait=="bothgroups"){
       
-      myData <- inputData()$descUpload
-      
       thresholdValues <- myData[1,]
       
       myData <- myData[-1,]
@@ -661,7 +523,7 @@ server <- function(input, output, session) {
       
       myData <- myData[,c(1:3, ncol(myData), 4:(ncol(myData)-1))]
       
-      withProgress(message = 'Rendering table', value = 0, {
+      withProgress(message = 'Rendering output', value = 0, {
         # Number of times we'll go through the loop
         loopTimes <- ncol(myData)-5
         
@@ -725,16 +587,51 @@ server <- function(input, output, session) {
     }
     
     
-  })
+  }
+            
+  desc_table <- function() {
+    di <- doDescriptives()$finalData
+    if (is.null(di)) "Upload data" else di
+  }
+  
+  # cor_table <- function() {
+  #   
+  #   rowCallback <- c(
+  #     "function(row, data){",
+  #     "  for(var i=0; i<data.length; i++){",
+  #     "    if(data[i] === null){",
+  #     "      $('td:eq('+i+')', row).html('NA')",
+  #     "        .css({'color': 'rgb(151,151,151)', 'font-style': 'italic'});",
+  #     "    }",
+  #     "  }",
+  #     "}"
+  #   )
+  #   
+  #   di <-  doCorrelation()$corMatrix
+  #   
+  #   if (is.null(di)) {
+  #     x <- data.frame("Upload data")
+  #     colnames(x) <- "Please upload some data"
+  #     x
+  #   } else {
+  #     
+  #     
+  #     x <- datatable(data, options = list(rowCallback = JS(rowCallback))) %>% formatStyle(
+  #       columns = colnames(data),
+  #       backgroundColor = styleInterval(c(input$corFlag, 0.999, 1.001, 1000), c('white', 'lightgreen', 'lightblue', 'lightyellow', 'red'))
+  #     ) %>%
+  #       formatSignif(
+  #         columns = colnames(data),
+  #         digits = 3
+  #       )
+  #     x
+  #   }
+  # }
+  
   
   
   output$descTable <- renderTable({
-    
-    shinyjs::show(id = "downloadDescExcel")
-    shinyjs::show(id = "downloadDescCSV")
-    
-    doDescriptives()$finalData
-    
+    desc_table()
   })
   
   output$corTable <- renderDataTable({
@@ -752,6 +649,13 @@ server <- function(input, output, session) {
     
     data <-  doCorrelation()$corMatrix
     
+    if (is.null(data)){
+      x <- data.frame("Upload some data")
+      colnames(x) <- "Please upload some data"
+      x
+    } else {
+    
+    
     datatable(data, options = list(rowCallback = JS(rowCallback))) %>% formatStyle(
       columns = colnames(data),
       backgroundColor = styleInterval(c(input$corFlag, 0.999, 1.001, 1000), c('white', 'lightgreen', 'lightblue', 'lightyellow', 'red'))
@@ -760,66 +664,31 @@ server <- function(input, output, session) {
         columns = colnames(data),
         digits = 3
       )
+      
+    }
     
-    
-    
-    
-    
-    # data %>%
-    #   tableHTML(rownames = T) %>%
-    # add_css_conditional_column(conditional = 'between',
-    #                            between = c(0.5, 1),
-    #                            css = list(c('background-color'),
-    #                                       c('blue')),
-    #                            columns = 1:ncol(data))
+  
     
   })
   
-  
-  
-  
-  output$downloadDescExcel <- downloadHandler(
-    filename = function() {
-      "modifiedDesc.xlsx"
-    },
-    
+  output$downloaddDescTable <- downloadHandler(
+    filename = "DescTable.csv",
     content = function(file) {
-      
-      my_workbook <- createWorkbook()
-      
-      addWorksheet(
-        wb = my_workbook,
-        sheetName = "Sheet 1"
-      )
-      
-      writeData(
-        
-        my_workbook,
-        sheet = 1,
-        doDescriptives()$finalData
-      )
-      
-      saveWorkbook(my_workbook, file)
-      
-      
-    }
-    
-    
-  )
-  
-  output$downloadDescCSV <- downloadHandler(
-    filename = function() {
-      "modifiedDesc.csv"
-    },
-    content = function(file) {
-      write.csv(doDescriptives()$finalData, file, row.names = FALSE)
+      write.csv(desc_table(), file, row.names = FALSE)
     }
   )
   
-  
+  output$downloaddCorTable <- downloadHandler(
+    filename = "CorTable.csv",
+    content = function(file) {
+      write.csv(cor_table(), file, row.names = FALSE)
+    }
+  )
+
+
   observe({
     
-    inFile <- input$descriptivesFile1
+    inFile <- input$MMDFile
     if (is.null(inFile)) {
       return(NULL)
     } else {
@@ -838,7 +707,7 @@ server <- function(input, output, session) {
   
   observeEvent(input$group_handling1MMD,{
     
-    inFile <- input$descriptivesFile1
+    inFile <- input$MMDFile
     if (is.null(inFile)) {
       return(NULL)
     } else {
@@ -851,8 +720,6 @@ server <- function(input, output, session) {
     
     # group handling
     group1list <- input$group_handling1MMD
-    
-    #print(group1list)
     
     for (i in 1:length(group1list)){
       if (i==1){
@@ -874,14 +741,13 @@ server <- function(input, output, session) {
   
   
   rawdataInputMMD <- reactive({
-    inFile <- input$descriptivesFile1
+    inFile <- input$MMDFile
     if (is.null(inFile)) {
       return(NULL)
     } else {
       df <- loadData(inFile$datapath)
       attr(df, which = "name") = inFile[[1]]
     }
-    
     
     # side handling
     if (input$init_traitMMD == "RIGHT") {
@@ -947,8 +813,6 @@ server <- function(input, output, session) {
     }
     
     group1list <- input$group_handling1MMD
-    
-    #print(group1list)
     
     for (i in 1:length(group1list)){
       if (i==1){
@@ -1019,92 +883,194 @@ server <- function(input, output, session) {
       if (input$groupChoiceMMD=="bothgroups"){tmp <- get_Mn_Mp_bothgroups(df)}
       
       
+      temp <- tmp
+      ind <- which(!apply(temp$Mn == 0, 2, any))
+      temp$Mn <- temp$Mn[,ind]
       
-      res <- dentalAffinities::calculateMMD(data.frame(tmp$Mn), as.data.frame(tmp$Mp), thetadiff, theta)
+      if(dim(temp$Mn)[2]>2){
+        res <- dentalAffinities::calculateMMD(data.frame(tmp$Mn), as.data.frame(tmp$Mp), thetadiff, theta)
+      }
     }
     if (selected[1] == "MAH") {
       res <- dentalAffinities::calculateD2(df)
     }
-    print(res)
     res
   })
   
   # table
-  output$ggMDSMMD <- renderPlot({
+  
+  ggMDSMMD_plot <- function(){
     di <- dataInputMMD()
     if (is.null(di)) {
       return(grid::grid.text('Please, first upload a file with data'))
     }
     mat <- getDistMMD()
-    dentalAffinities::getMDS(mat$MMDMatrix)
-  })
-  output$ggCzekanowskiMMD <- renderPlot({
+    if (is.null(mat)){
+      return(grid::grid.text('Too much missing data, try removing some variables in the chosen group'))
+    } else {
+      dentalAffinities::getMDS(mat$MMDMatrix)
+    }
+    
+  }
+  
+  ggCzekanowskiMMD_plot <- function(){
     di <- dataInputMMD()
     if (is.null(di)) {
       return(grid::grid.text('Please, first upload a file with data'))
     }
     mat <- getDistMMD()
-    dentalAffinities::getCzekanowski(mat$MMDMatrix)
-  })
-  output$ggPCAMMD <- renderPlot({
+    if (is.null(mat)){
+      return(grid::grid.text('Too much missing data, try removing some variables in the chosen group'))
+    } else {
+      dentalAffinities::getCzekanowski(mat$MMDMatrix)
+    }
+  }
+  
+  ggPCAMMD_plot <- function(){
     di <- dataInputMMD()
     if (is.null(di)) {
       return(grid::grid.text('Please, first upload a file with data'))
     }
     dentalAffinities::getPCA(di)
-  })
+  }
   
-  # table
-  output$ggClustMMD <- renderPlot({
+  ggClustMMD_plot <- function(){
     di <- dataInputMMD()
     if (is.null(di)) {
       return(grid::grid.text('Please, first upload a file with data'))
     }
     mat <- getDistMMD()
-    dentalAffinities::getClust(mat$MMDMatrix)
-  })
+    if (is.null(mat)){
+      return(grid::grid.text('Too much missing data, try removing some variables in the chosen group'))
+    } else {
+      dentalAffinities::getClust(mat$MMDMatrix)
+    }
+  }
   
-  output$distSummaryMMD <- renderPrint({
+  distSummaryMMD_table <- function(){
     di <- dataInputMMD()
     if (is.null(di)) {
       "Upload data"
     } else {
       mat <- getDistMMD()$MMDMatrix
-      print(round(mat, 2))
-    }
-  })
-  output$sdSummaryMMD <- renderPrint({
+      if (is.null(mat)) {
+        print("MMD matrix is not available")
+      } else {
+        round(mat, 2)
+      }    }
+  }
+  
+  sdSummaryMMD_table <- function(){
     di <- dataInputMMD()
     if (is.null(di)) {
       "Upload data"
     } else {
       mat <- getDistMMD()$SDMatrix
       if (is.null(mat)) {
-        print("SD matrix not is available")
+        print("SD matrix is not available")
       } else {
-        print(round(mat, 2))
+        round(mat, 2)
       }
     }
-  })
-  output$signifSummaryMMD <- renderPrint({
+  }
+  
+  signifSummaryMMD_table <- function(){
     di <- dataInputMMD()
     if (is.null(di)) {
       "Upload data"
     } else {
       mat <- getDistMMD()$SigMatrix
       if (is.null(mat)) {
-        print("P-values matrix not is available")
+        print("P-values matrix is not available")
       } else {
-        print(round(mat, 5))
+        round(mat, 5)
       }
     }
+  }
+                                    
+  
+  output$ggMDSMMD <- renderPlot({
+    ggMDSMMD_plot()
   })
+  
+  output$ggCzekanowskiMMD <- renderPlot({
+    ggCzekanowskiMMD_plot()
+  })
+  
+  output$ggPCAMMD <- renderPlot({
+    ggPCAMMD_plot()
+  })
+  
+  output$ggClustMMD <- renderPlot({
+    ggClustMMD_plot()
+  })
+  
+  output$distSummaryMMD <- renderTable({
+    distSummaryMMD_table()
+  })
+  output$sdSummaryMMD <- renderTable({
+    sdSummaryMMD_table()
+  })
+  
+  output$signifSummaryMMD <- renderTable({
+    signifSummaryMMD_table()
+  })
+  
+  output$downloadggMDSMMD <- downloadHandler(
+    filename = "ggMDSMMD.png",
+    content = function(file) {
+      ggsave(file, ggMDSMMD_plot(), device = png)
+    }
+  )
+  
+  output$downloadggCzekanowskiMMD <- downloadHandler(
+    filename = "ggCzekanowskiMMD.png",
+    content = function(file) {
+      ggsave(file, ggCzekanowskiMMD_plot(), device = png)
+    }
+  )
+  
+  output$downloadggPCAMMD <- downloadHandler(
+    filename = "ggPCAMMD.png",
+    content = function(file) {
+      ggsave(file, ggPCAMMD_plot(), device = png)
+    }
+  )
+  
+  output$downloadggClustMMD <- downloadHandler(
+    filename = "ggClustMMD.png",
+    content = function(file) {
+      ggsave(file, ggClustMMD_plot(), device = png)
+    }
+  )
+  
+  output$downloaddistSummaryMMD <- downloadHandler(
+    filename = "distSummaryMMD.csv",
+    content = function(file) {
+      write.csv(distSummaryMMD_table(), file, row.names = FALSE)
+    }
+  )
+  
+  output$downloadsdSummaryMMD <- downloadHandler(
+    filename = "sdSummaryMMD.csv",
+    content = function(file) {
+      write.csv(sdSummaryMMD_table(), file, row.names = FALSE)
+    }
+  )
+  
+  output$downloadsignifSummaryMMD <- downloadHandler(
+    filename = "signifSummaryMMD.csv",
+    content = function(file) {
+      write.csv(signifSummaryMMD_table(), file, row.names = FALSE)
+    }
+  )
+  
   
   #Mahalanobis functions
   
   observe({
     
-    inFile <- input$descriptivesFile2
+    inFile <- input$MahalanobisFile
     if (is.null(inFile)) {
       return(NULL)
     } else {
@@ -1123,7 +1089,7 @@ server <- function(input, output, session) {
   
   observeEvent(input$group_handling1Mahalanobis,{
     
-    inFile <- input$descriptivesFile2
+    inFile <- input$MahalanobisFile
     if (is.null(inFile)) {
       return(NULL)
     } else {
@@ -1136,8 +1102,6 @@ server <- function(input, output, session) {
     
     # group handling
     group1list <- input$group_handling1Mahalanobis
-    
-    #print(group1list)
     
     for (i in 1:length(group1list)){
       if (i==1){
@@ -1159,7 +1123,7 @@ server <- function(input, output, session) {
   
   
   rawdataInputMahalanobis <- reactive({
-    inFile <- input$descriptivesFile2
+    inFile <- input$MahalanobisFile
     if (is.null(inFile)) {
       return(NULL)
     } else {
@@ -1233,8 +1197,6 @@ server <- function(input, output, session) {
     
     group1list <- input$group_handling1Mahalanobis
     
-    #print(group1list)
-    
     for (i in 1:length(group1list)){
       if (i==1){
         temp <- df[which(df[,2] == group1list[i]),]
@@ -1299,7 +1261,19 @@ server <- function(input, output, session) {
       if (selected[3] == "GRE")
         thetadiff <- dentalAffinities::thetadiff_Grewal
       
-      tmp <- dentalAffinities::get_Mn_Mp(df)
+      if (input$groupChoiceMahalanobis=="group1"){tmp <- get_Mn_Mp_group_1(df)}
+      if (input$groupChoiceMahalanobis=="group2"){tmp <- get_Mn_Mp_group_2(df)}
+      if (input$groupChoiceMahalanobis=="bothgroups"){tmp <- get_Mn_Mp_bothgroups(df)}
+      
+      
+      temp <- tmp
+      ind <- which(!apply(temp$Mn == 0, 2, any))
+      temp$Mn <- temp$Mn[,ind]
+      
+      if(dim(temp$Mn)[2]>2){
+        res <- dentalAffinities::calculateMMD(data.frame(tmp$Mn), as.data.frame(tmp$Mp), thetadiff, theta)
+      }
+      
       res <- dentalAffinities::calculateMMD(data.frame(tmp$Mn), as.data.frame(tmp$Mp), thetadiff, theta)
     }
     if (selected[1] == "MAH") {
@@ -1309,81 +1283,172 @@ server <- function(input, output, session) {
   })
   
   # table
-  output$ggMDSMahalanobis <- renderPlot({
+  
+  ggMDSMahalanobis_plot <- function(){
     di <- dataInputMahalanobis()
     if (is.null(di)) {
       return(grid::grid.text('Please, first upload a file with data'))
     }
     mat <- getDistMahalanobis()
     dentalAffinities::getMDS(mat$MMDMatrix)
-  })
-  output$ggCzekanowskiMahalanobis <- renderPlot({
+  }
+  
+  ggCzekanowskiMahalanobis_plot <- function(){
     di <- dataInputMahalanobis()
     if (is.null(di)) {
       return(grid::grid.text('Please, first upload a file with data'))
     }
     mat <- getDistMahalanobis()
     dentalAffinities::getCzekanowski(mat$MMDMatrix)
-  })
-  output$ggPCAMahalanobis <- renderPlot({
+  }
+  
+  ggPCAMahalanobis_plot <- function(){
     di <- dataInputMahalanobis()
     if (is.null(di)) {
       return(grid::grid.text('Please, first upload a file with data'))
     }
     dentalAffinities::getPCA(di)
-  })
+  }
   
-  # table
-  output$ggClustMahalanobis <- renderPlot({
+  ggClustMahalanobis_plot <- function(){
     di <- dataInputMahalanobis()
     if (is.null(di)) {
       return(grid::grid.text('Please, first upload a file with data'))
     }
     mat <- getDistMahalanobis()
     dentalAffinities::getClust(mat$MMDMatrix)
-  })
+  }
   
-  output$distSummaryMahalanobis <- renderPrint({
+  distSummaryMahalanobis_table <- function(){
     di <- dataInputMahalanobis()
     if (is.null(di)) {
       "Upload data"
     } else {
       mat <- getDistMahalanobis()$MMDMatrix
-      print(round(mat, 2))
+      if (is.null(mat)){
+        print("MMD matrix is not available")
+      } else {
+      round(mat, 2)
     }
-  })
-  output$sdSummaryMahalanobis <- renderPrint({
+    }
+  }
+  
+  sdSummaryMahalanobis_table <- function(){
     di <- dataInputMahalanobis()
     if (is.null(di)) {
       "Upload data"
     } else {
       mat <- getDistMahalanobis()$SDMatrix
       if (is.null(mat)) {
-        print("SD matrix not is available")
+        "SD matrix is not available"
       } else {
-        print(round(mat, 2))
+        round(mat, 2)
       }
     }
-  })
-  output$signifSummaryMahalanobis <- renderPrint({
+  }
+  
+  signifSummaryMahalanobis_table <- function(){
     di <- dataInputMahalanobis()
     if (is.null(di)) {
       "Upload data"
     } else {
       mat <- getDistMahalanobis()$SigMatrix
       if (is.null(mat)) {
-        print("P-values matrix not is available")
+        "P-values matrix is not available"
       } else {
-        print(round(mat, 5))
+        round(mat, 5)
       }
     }
+  }
+  
+  
+  output$ggMDSMahalanobis <- renderPlot({
+    ggMDSMahalanobis_plot()
   })
+
+  output$ggCzekanowskiMahalanobis <- renderPlot({
+    ggCzekanowskiMahalanobis_plot()
+  })
+  
+  output$ggPCAMahalanobis <- renderPlot({
+    ggPCAMahalanobis_plot()
+  })
+  
+  # table
+  output$ggClustMahalanobis <- renderPlot({
+    ggClustMahalanobis_plot()
+  })
+  
+  output$distSummaryMahalanobis <- renderTable({
+    distSummaryMahalanobis_table()
+  })
+  
+  output$sdSummaryMahalanobis <- renderTable({
+    sdSummaryMahalanobis_table()
+  })
+  
+  output$signifSummaryMahalanobis <- renderTable({
+    signifSummaryMahalanobis_table()
+  })
+  
+  output$downloadggMDSMahalanobis <- downloadHandler(
+    filename = "ggMDSMahalanobis.png",
+    content = function(file) {
+      ggsave(file, ggMDSMahalanobis_plot(), device = png)
+    }
+  )
+  
+  output$downloadggCzekanowskiMahalanobis <- downloadHandler(
+    filename = "ggCzekanowskiMahalanobis.png",
+    content = function(file) {
+      ggsave(file, ggCzekanowskiMahalanobis_plot(), device = png)
+    }
+  )
+  
+  output$downloadggPCAMahalanobis <- downloadHandler(
+    filename = "ggPCAMahalanobis.png",
+    content = function(file) {
+      ggsave(file, ggPCAMahalanobis_plot(), device = png)
+    }
+  )
+  
+  output$downloadggClustMahalanobis <- downloadHandler(
+    filename = "ggClustMahalanobis.png",
+    content = function(file) {
+      ggsave(file, ggClustMahalanobis_plot(), device = png)
+    }
+  )
+  
+  output$downloaddistSummaryMahalanobis <- downloadHandler(
+    filename = "distSummaryMahalanobis.csv",
+    content = function(file) {
+      write.csv(distSummaryMahalanobis_table(), file, row.names = FALSE)
+    }
+  )
+  
+  output$downloadsdSummaryMahalanobis <- downloadHandler(
+    filename = "sdSummaryMahalanobis.csv",
+    content = function(file) {
+      write.csv(sdSummaryMahalanobis_table(), file, row.names = FALSE)
+    }
+  )
+  
+  output$downloadsignifSummaryMahalanobis <- downloadHandler(
+    filename = "signifSummaryMahalanobis.csv",
+    content = function(file) {
+      write.csv(signifSummaryMahalanobis_table(), file, row.names = FALSE)
+    }
+  )
+  
+
+  
+  
   
   #Gower functions
 
   observe({
     
-    inFile <- input$descriptivesFile3
+    inFile <- input$GowerFile
     if (is.null(inFile)) {
       return(NULL)
     } else {
@@ -1402,7 +1467,7 @@ server <- function(input, output, session) {
   
   observeEvent(input$group_handling1Gower,{
     
-    inFile <- input$descriptivesFile3
+    inFile <- input$GowerFile
     if (is.null(inFile)) {
       return(NULL)
     } else {
@@ -1415,8 +1480,6 @@ server <- function(input, output, session) {
     
     # group handling
     group1list <- input$group_handling1Gower
-    
-    #print(group1list)
     
     for (i in 1:length(group1list)){
       if (i==1){
@@ -1438,7 +1501,7 @@ server <- function(input, output, session) {
   
   
   rawdataInputGower <- reactive({
-    inFile <- input$descriptivesFile3
+    inFile <- input$GowerFile
     if (is.null(inFile)) {
       return(NULL)
     } else {
@@ -1512,8 +1575,6 @@ server <- function(input, output, session) {
     
     group1list <- input$group_handling1Gower
     
-    #print(group1list)
-    
     for (i in 1:length(group1list)){
       if (i==1){
         temp <- df[which(df[,2] == group1list[i]),]
@@ -1559,63 +1620,107 @@ server <- function(input, output, session) {
     }
     df
   })
+
   
-  # get dist
-  # getDistGower <- reactive({
-  #   res <- NULL
-  #   
-  #   df <- dataInputGower()
-  #   
-  #   selected <- strsplit(input$method_selGower, split="_")[[1]]
-  #   if (selected[1] == "MMD") {
-  #     theta <- dentalAffinities::theta_Anscombe
-  #     if (selected[2] == "FRE")
-  #       theta <- dentalAffinities::theta_Freeman
-  #     
-  #     thetadiff <- dentalAffinities::thetadiff_uncorrected
-  #     if (selected[3] == "FRE")
-  #       thetadiff <- dentalAffinities::thetadiff_Freeman
-  #     if (selected[3] == "GRE")
-  #       thetadiff <- dentalAffinities::thetadiff_Grewal
-  #     
-  #     tmp <- dentalAffinities::get_Mn_Mp(df)
-  #     res <- dentalAffinities::calculateMMD(data.frame(tmp$Mn), as.data.frame(tmp$Mp), thetadiff, theta)
-  #   }
-  #   if (selected[1] == "MAH") {
-  #     res <- dentalAffinities::calculateD2(df)
-  #   }
-  #   res
-  # })
-  
-  
-  doGowerPlots <- eventReactive(input$runAnalysisGower, {
-    ggMDSGowerPlot <- NA
+  #Functions to create the plots/tables
+  ggMDSGower_plot <- function(){
     di <- dataInputGower()
+    if (is.null(di)) {
+      return(NULL)
+    }
     y <- vegdist(di[,4:ncol(di)], method="gower", na.rm = T)
-    ggMDSGowerPlot <- betadisper(y, group = di$GROUP1, add = T)
-    return(list(ggMDSGowerPlot = ggMDSGowerPlot))
+    betadisper(y, group = di$GROUP1, add = T)
+  }
+  
+  permDispGower_text <- function(){
+    di <- dataInputGower()
+    if (is.null(di)) {
+      return(NULL)
+    }
+    y <- vegdist(di[,4:ncol(di)], method="gower", na.rm = T)
+    output <<- betadisper(y, group = di$GROUP1, add = T)
+  }
+  
+  pairwiseAdonisGower_text <- function(){
+    di <- dataInputGower()
+    if (is.null(di)) {
+      return(NULL)
+    }
+    y <- vegdist(di[,4:ncol(di)], method="gower", na.rm = T)
+    pairwise.adonis2(y~GROUP1, data = di, p.adjust = "holm")
+  }
+  
+  #Functions to output the plots/tables
+  output$ggMDSGower <- renderPlot({
+    if (is.null(ggMDSGower_plot())){
+      grid::grid.text('Please, first upload a file with data')
+    } else {
+      plot(ggMDSGower_plot())
+    }
   })
+  
+  output$permDispGower <- renderText({
+    if (is.null(permDispGower_text())){
+      'Please, first upload a file with data'
+    } else {
+      #permDispGower_text()
+      'This has ran correctly, please download the output (below)'
+    }
+  })
+  
+  output$pairwiseAdonisGower <- renderText({
+    if (is.null(pairwiseAdonisGower_text())){
+      'Please, first upload a file with data'
+    } else {
+      #pairwiseAdonisGower_text()
+      'This has ran correctly, please download the output (below)'
+    }
+  })
+  
+  #Functions to download the plots/tables
+  #downloadpermDispGower
+  
+  #perm disp
+  output$downloadpermDispGower <- downloadHandler(
+    filename = function(){
+      paste("data-", Sys.Date(), ".txt", sep = "")
+    },
+    content = function(file) {
+      writeLines(paste(text, collapse = ", "), file)
+      # write.table(paste(text,collapse=", "), file,col.names=FALSE)
+    }
+  )
+  
+  #pairwise adonis
+  output$downloadpermDispGower <- downloadHandler(
+    filename = function(){
+      paste("data-", Sys.Date(), ".txt", sep = "")
+    },
+    content = function(file) {
+      writeLines(paste(text, collapse = ", "), file)
+      # write.table(paste(text,collapse=", "), file,col.names=FALSE)
+    }
+  )
   
   
   output$percentMD <- renderUI({
-    
+
     df <- dataInputGower()
     #Percentage of missing values in the data set
     paste0("The percentage of missing data in your data set is ", round(sum(is.na(df[,4:ncol(df)]))/
       prod(dim(df[,4:ncol(df)])), 2)*100, "%")
-    
-    
+
   })
   
   # table
-  output$ggMDSGower <- renderPlot({
-    di <- doGowerPlots()$ggMDSGowerPlot
-    if (is.null(di)) {
-      return(grid::grid.text('Please, first upload a file with data'))
-    }
-    plot(di)
-    
-  })
+  # output$ggMDSGower <- renderPlot({
+  #   di <- doGowerPlots()$ggMDSGowerPlot
+  #   if (is.null(di)) {
+  #     return(grid::grid.text('Please, first upload a file with data'))
+  #   }
+  #   plot(di)
+  #   
+  # })
   # output$ggCzekanowskiGower <- renderPlot({
   #   di <- dataInputGower()
   #   if (is.null(di)) {
@@ -1631,8 +1736,8 @@ server <- function(input, output, session) {
   #   }
   #   dentalAffinities::getPCA(di)
   # })
-  # 
-  # # table
+
+  # table
   # output$ggClustGower <- renderPlot({
   #   di <- dataInputGower()
   #   if (is.null(di)) {
@@ -1641,7 +1746,7 @@ server <- function(input, output, session) {
   #   mat <- getDistGower()
   #   dentalAffinities::getClust(mat$MMDMatrix)
   # })
-  # 
+
   # output$distSummaryGower <- renderPrint({
   #   di <- dataInputGower()
   #   if (is.null(di)) {
@@ -1835,100 +1940,7 @@ server <- function(input, output, session) {
   #     ggtitle("PCA plot") + theme_classic() + xlab("") + ylab("")
   # }
   
-  output$downloadReport <- downloadHandler(
-    filename = function() {
-      paste('dentalAffinities_diagnostic_', Sys.Date(), '.pdf', sep='')
-    },
-    content = function(con) {
-      ll <- rawdataInput()
-      if (!is.null(ll)) {
-        df <- ll$df
-        THRESHOLD <- ll$THRESHOLD
-        
-        src <- normalizePath('report.Rmd')
-        td <- tempdir()
-        owd <- setwd(td)
-        on.exit(setwd(owd))
-        file.copy(src, 'report.Rmd', overwrite = TRUE)
-        save(df, THRESHOLD, file="raw_data.rda")
-        
-        library(rmarkdown)
-        out <- render('report.Rmd', pdf_document())
-        file.rename(out, con)
-      }
-    }
-  )
-  
-  output$downloadFigures <- downloadHandler(
-    filename = function() {
-      paste('dentalAffinities_', Sys.Date(), '.pdf', sep='')
-    },
-    content = function(con) {
-      di <- dataInput()
-      if (!is.null(di)) {
-        pdf(file = con, width = 10, height = 10)
-        mat <- getDist()
-        
-        print(dentalAffinities::getClust(mat$MMDMatrix))
-        print(dentalAffinities::getMDS(mat$MMDMatrix))
-        print(dentalAffinities::getCzekanowski(mat$MMDMatrix))
-        print(dentalAffinities::getPCA(di))
-        
-        dev.off()
-      }
-    }
-  )
-  
-  output$downloadData <- downloadHandler(
-    filename = function() {
-      paste('dentalAffinities_', Sys.Date(), '.xlsx', sep='')
-    },
-    content = function(con) {
-      di <- dataInput()
-      if (is.null(di)) {
-        mat <- data.frame("Upload the data first")
-      } else {
-        rdi <- rawdataInput()
-        
-        # basic stats
-        parameter = c("File name",
-                      "Method",
-                      "Sex handling",
-                      "Binarization",
-                      "Initial trait selection",
-                      "Post-hoc trait selection",
-                      "Date")
-        value = c(ifelse(is.null(input$file1), "Example data", input$file1[[1]]),
-                  names(which(input$method_sel == method_sel)),
-                  names(which(input$sex_handling == sex_handling)),
-                  names(which(input$binarisation == binarisation)),
-                  names(which(input$init_trait == init_trait)),
-                  names(which(input$post_trait == post_trait)),
-                  date())
-        
-        df <- list(parameter=parameter,
-                   value=value)
-        mat <- list(Basic_Statics = df, Thresholds = t(rdi$THRESHOLD[1,-(1:3)]))
-        tmp <- dentalAffinities::get_Mn_Mp(di)
-        tmpN <- t(tmp[[1]])
-        colnames(tmpN) <- paste(tmpN[1,], " (N)")
-        tmpP <- t(data.frame(tmp[[2]][,1], round(tmp[[2]][,-1], 3)))
-        colnames(tmpP) <- paste(tmpP[1,], " (prc)")
-        tmp2 <- cbind(tmpN[-1,], tmpP[-1,])
-        tmp3 <- apply(tmp2, 2, as.numeric)
-        rownames(tmp3) <- rownames(tmp2)
-        mat$Counts_in_sites <- tmp3
-        stats <- getCutoffStats(rdi$df)
-        mat$Cutoff_statistics <- stats
-        freq <- getSummaryStatistics(rdi$df)
-        mat$Frequencies <- freq
-        mat2 <- getDist()
-        mat <- c(mat, mat2)
-        
-        write.xlsx(mat, file = con, row.names = TRUE)
-      }
-    }
-  )
+
   
 }
 
