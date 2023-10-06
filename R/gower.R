@@ -31,9 +31,9 @@ pairwise.adonis2(y~GROUP2, data = myData, p.adjust = "holm")
 
 betadisper(y, group = myData$GROUP1, add = T)
 
-permutest(betadisper(y, group = myData$GROUP1, add = T))
+#permutest(betadisper(y, group = myData$GROUP1, add = T))
 
-TukeyHSD(betadisper(y, group = myData$GROUP1, add = T))
+#TukeyHSD(betadisper(y, group = myData$GROUP1, add = T))
 
   
   

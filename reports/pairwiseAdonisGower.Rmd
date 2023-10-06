@@ -1,0 +1,15 @@
+---
+title: "pairwiseAdonisGower"
+output: html_document
+params:
+  pairwiseAdonisGowerOutput: NA
+---
+
+```{r setup, include=FALSE}
+library(vegan)
+```
+
+```{r}
+print(params$pairwiseAdonisGowerOutput)
+```
+

@@ -10,6 +10,7 @@ library(tableHTML)
 library(DT)
 library(vegan)
 library(pairwiseAdonis)
+library(cluster)
 
 ui <- fluidPage(
   useShinyjs(),
@@ -79,7 +80,7 @@ ui <- fluidPage(
                  ),
                  mainPanel = mainPanel(
                    fluidRow(
-                     column(width = 4,
+                     column(width = 8,
                             plotOutput('ggMDSMMD', width = 600, height = 400),
                             downloadButton("downloadggMDSMMD", "Download MDS diagram"),
                             plotOutput('ggCzekanowskiMMD', width = 600, height = 400),
@@ -140,7 +141,7 @@ ui <- fluidPage(
                  ),
                  mainPanel = mainPanel(
                    fluidRow(
-                     column(width = 4,
+                     column(width = 8,
                             plotOutput('ggMDSMahalanobis', width = 600, height = 400),
                             downloadButton("downloadggMDSMahalanobis", "Download MDS diagram"),
                             plotOutput('ggCzekanowskiMahalanobis', width = 600, height = 400),
@@ -201,7 +202,7 @@ ui <- fluidPage(
                  ),
                  mainPanel = mainPanel(
                    fluidRow(
-                     column(width = 4,
+                     column(width = 8,
                             plotOutput('ggMDSGower', width = 600, height = 400),
                             downloadButton("downloadggMDSGower", "Download MDS diagram"),
                             plotOutput('ggClustGower', width = 600, height = 400),
@@ -210,18 +211,10 @@ ui <- fluidPage(
                             p("Distance matrix"),
                             tableOutput('distSummaryGower'),
                             downloadButton("downloaddistSummaryGower", "Download distance matrix"),
-                            p("SD matrix"),
-                            tableOutput('sdSummaryGower'),
-                            downloadButton("downloadsdSummaryGower", "Download SD matrix"),
-                            p("Significance matrix"),
-                            tableOutput('signifSummaryGower'),
-                            downloadButton("downloadsignifSummaryGower", "Download significance matrix"),
                             textOutput("permDispGower"),
-                            downloadButton("downloadpermDispGower", "Download perm disp"),
+                            downloadButton("permDispGowerPDF", "Download perm disp"),
                             textOutput("pairwiseAdonisGower"),
-                            downloadButton("downloadpairwiseAdonisGower", "Download pairwise adonis")
-                            
-                            
+                            downloadButton("pairwiseAdonisGowerPDF", "Download pairwise adonis")
                      ))
                  )
                )
@@ -245,7 +238,7 @@ server <- function(input, output, session) {
   
   
   inputDescData <- reactive({
-    #Allows the user to upload a control sample
+    
     
     if (is.null(v$descUpload)){
       return(NULL)
@@ -1620,7 +1613,7 @@ server <- function(input, output, session) {
     }
     df
   })
-
+  
   
   #Functions to create the plots/tables
   ggMDSGower_plot <- function(){
@@ -1632,13 +1625,35 @@ server <- function(input, output, session) {
     betadisper(y, group = di$GROUP1, add = T)
   }
   
+  #dendrogram Gower
+  
+  ggClustGower_plot <- function(){
+    di <- dataInputGower()
+    if (is.null(di)) {
+      return(NULL)
+    }
+    y <- vegdist(di[,4:ncol(di)], method="gower", na.rm = T)
+    dentalAffinities::getClust(y)
+  }
+  
+  
+  distSummaryGower_table <- function(){
+    di <- dataInputGower()
+    if (is.null(di)) {
+      return(NULL)
+    }
+    y <- vegdist(di[,4:ncol(di)], method="gower", na.rm = T)
+    x <- as.data.frame(as.matrix(y))
+    x
+  }
+  
   permDispGower_text <- function(){
     di <- dataInputGower()
     if (is.null(di)) {
       return(NULL)
     }
     y <- vegdist(di[,4:ncol(di)], method="gower", na.rm = T)
-    output <<- betadisper(y, group = di$GROUP1, add = T)
+    y
   }
   
   pairwiseAdonisGower_text <- function(){
@@ -1659,11 +1674,27 @@ server <- function(input, output, session) {
     }
   })
   
+  output$ggClustGower <- renderPlot({
+    if (is.null(ggClustGower_plot())){
+      grid::grid.text('Please, first upload a file with data')
+    } else {
+      plot(ggClustGower_plot())
+    }
+  })
+  
+  output$distSummaryGower <- renderText({
+    if (is.null(distSummaryGower_table())){
+      'Please, first upload a file with data'
+    } else {
+      'This has ran correctly, please download the output (below)'
+    }
+  })
+  
+  
   output$permDispGower <- renderText({
     if (is.null(permDispGower_text())){
       'Please, first upload a file with data'
     } else {
-      #permDispGower_text()
       'This has ran correctly, please download the output (below)'
     }
   })
@@ -1672,35 +1703,86 @@ server <- function(input, output, session) {
     if (is.null(pairwiseAdonisGower_text())){
       'Please, first upload a file with data'
     } else {
-      #pairwiseAdonisGower_text()
       'This has ran correctly, please download the output (below)'
     }
   })
   
   #Functions to download the plots/tables
-  #downloadpermDispGower
   
-  #perm disp
-  output$downloadpermDispGower <- downloadHandler(
-    filename = function(){
-      paste("data-", Sys.Date(), ".txt", sep = "")
-    },
+  output$downloadggMDSGower <- downloadHandler(
+    file = "ggMDSGower.png" , # variable with filename
     content = function(file) {
-      writeLines(paste(text, collapse = ", "), file)
-      # write.table(paste(text,collapse=", "), file,col.names=FALSE)
+      #ggsave(p(), filename = file)
+      png(file = file)
+      plot(ggMDSGower_plot())
+      dev.off()
+    })
+  
+  output$downloadggClustGower <- downloadHandler(
+    file = "ggClustGower.png" , # variable with filename
+    content = function(file) {
+      #ggsave(p(), filename = file)
+      png(file = file)
+      plot(ggClustGower_plot())
+      dev.off()
+    })
+
+  
+  
+  output$downloaddistSummaryGower <- downloadHandler(
+    filename = "distSummaryGower.csv",
+    content = function(file) {
+      write.csv(distSummaryGower_table(), file, row.names = FALSE)
+    }
+  )
+
+  
+  
+  output$permDispGowerPDF <- downloadHandler(
+    filename = "permDispGower.html",
+    content = function(file) {
+      # Copy the report file to a temporary directory before processing it, in
+      # case we don't have write permissions to the current working dir (which
+      # can happen when deployed).
+      tempReport <- file.path(tempdir(), "permDispGower.Rmd")
+      file.copy("permDispGower.Rmd", tempReport, overwrite = TRUE)
+      
+      # Set up parameters to pass to Rmd document
+      params <- list(permDispGowerOutput = ggMDSGower_plot())
+      
+      # Knit the document, passing in the `params` list, and eval it in a
+      # child of the global environment (this isolates the code in the document
+      # from the code in this app).
+      rmarkdown::render(tempReport, output_file = file,
+                        params = params,
+                        envir = new.env(parent = globalenv())
+      )
     }
   )
   
-  #pairwise adonis
-  output$downloadpermDispGower <- downloadHandler(
-    filename = function(){
-      paste("data-", Sys.Date(), ".txt", sep = "")
-    },
+  
+  output$pairwiseAdonisGowerPDF <- downloadHandler(
+    filename = "pairwiseAdonisGower.html",
     content = function(file) {
-      writeLines(paste(text, collapse = ", "), file)
-      # write.table(paste(text,collapse=", "), file,col.names=FALSE)
+      # Copy the report file to a temporary directory before processing it, in
+      # case we don't have write permissions to the current working dir (which
+      # can happen when deployed).
+      tempReport <- file.path(tempdir(), "pairwiseAdonisGower.Rmd")
+      file.copy("pairwiseAdonisGower.Rmd", tempReport, overwrite = TRUE)
+      
+      # Set up parameters to pass to Rmd document
+      params <- list(pairwiseAdonisGowerOutput = pairwiseAdonisGower_text())
+      
+      # Knit the document, passing in the `params` list, and eval it in a
+      # child of the global environment (this isolates the code in the document
+      # from the code in this app).
+      rmarkdown::render(tempReport, output_file = file,
+                        params = params,
+                        envir = new.env(parent = globalenv())
+      )
     }
   )
+  
   
   
   output$percentMD <- renderUI({
@@ -1712,76 +1794,7 @@ server <- function(input, output, session) {
 
   })
   
-  # table
-  # output$ggMDSGower <- renderPlot({
-  #   di <- doGowerPlots()$ggMDSGowerPlot
-  #   if (is.null(di)) {
-  #     return(grid::grid.text('Please, first upload a file with data'))
-  #   }
-  #   plot(di)
-  #   
-  # })
-  # output$ggCzekanowskiGower <- renderPlot({
-  #   di <- dataInputGower()
-  #   if (is.null(di)) {
-  #     return(grid::grid.text('Please, first upload a file with data'))
-  #   }
-  #   mat <- getDistGower()
-  #   dentalAffinities::getCzekanowski(mat$MMDMatrix)
-  # })
-  # output$ggPCAGower <- renderPlot({
-  #   di <- dataInputGower()
-  #   if (is.null(di)) {
-  #     return(grid::grid.text('Please, first upload a file with data'))
-  #   }
-  #   dentalAffinities::getPCA(di)
-  # })
 
-  # table
-  # output$ggClustGower <- renderPlot({
-  #   di <- dataInputGower()
-  #   if (is.null(di)) {
-  #     return(grid::grid.text('Please, first upload a file with data'))
-  #   }
-  #   mat <- getDistGower()
-  #   dentalAffinities::getClust(mat$MMDMatrix)
-  # })
-
-  # output$distSummaryGower <- renderPrint({
-  #   di <- dataInputGower()
-  #   if (is.null(di)) {
-  #     "Upload data"
-  #   } else {
-  #     mat <- getDistGower()$MMDMatrix
-  #     print(round(mat, 2))
-  #   }
-  # })
-  # output$sdSummaryGower <- renderPrint({
-  #   di <- dataInputGower()
-  #   if (is.null(di)) {
-  #     "Upload data"
-  #   } else {
-  #     mat <- getDistGower()$SDMatrix
-  #     if (is.null(mat)) {
-  #       print("SD matrix not is available")
-  #     } else {
-  #       print(round(mat, 2))
-  #     }
-  #   }
-  # })
-  # output$signifSummaryGower <- renderPrint({
-  #   di <- dataInputGower()
-  #   if (is.null(di)) {
-  #     "Upload data"
-  #   } else {
-  #     mat <- getDistGower()$SigMatrix
-  #     if (is.null(mat)) {
-  #       print("P-values matrix not is available")
-  #     } else {
-  #       print(round(mat, 5))
-  #     }
-  #   }
-  # })
   
   get_Mn_Mp_group_1 <- function(binary_trait_data) {
     colnames(binary_trait_data)[1:3] <- c("id", "group1", "group2")
@@ -1824,122 +1837,7 @@ server <- function(input, output, session) {
     
     list(Mn = Mn, Mp = Mp)
   }
-  # 
-  # calculateMMD1 <- function(M_n, M_p, thetadiff, theta, deltamin = 0.01) {
-  #   # remove traits with n == 0
-  #   ind <- which(!apply(M_n == 0, 2, any))
-  #   M_p <- M_p[,ind]
-  #   M_n <- M_n[,ind]
-  #   # end - remove traits with n == 0
-  #   
-  #   VarMatrix <- M_n[1:2, 2:length(M_n[1, ])]
-  #   MMDMatrix <- matrix(0, length(M_n[, 1]), length(M_n[, 1]))
-  #   
-  #   for (a in seq_along(VarMatrix[1, ])) {
-  #     for (b in seq_along(MMDMatrix[, 1])) {
-  #       for (c in seq_along(MMDMatrix[1, ])) {
-  #         tmp <- thetadiff(M_n[b,a+1], M_p[b,a+1], M_n[c,a+1], M_p[c,a+1], theta)
-  #         tmp <- pmax(tmp, deltamin)
-  #         MMDMatrix[b,c] <- tmp
-  #       }
-  #     }
-  #     
-  #     for (b in seq_along(MMDMatrix[, 1])) {
-  #       for (c in seq_along(MMDMatrix[1, ])) {
-  #         if (b >= c) {
-  #           MMDMatrix[b, c] = 0
-  #         }
-  #       }
-  #     }
-  #     
-  #     VNeg <- 0
-  #     VPos <- 0
-  #     for (b in seq_along(MMDMatrix[, 1])) {
-  #       for (c in seq_along(MMDMatrix[1, ])) {
-  #         if (MMDMatrix[b, c] > 0) {
-  #           VPos = VPos + 1
-  #         }
-  #         if (MMDMatrix[b, c] < 0) {
-  #           VNeg = VNeg + 1
-  #         }
-  #       }
-  #     }
-  #     
-  #     VarMatrix[1, a] = sum(MMDMatrix)
-  #     VarMatrix[2, a] = VPos / (VPos + VNeg)
-  #   }
-  #   
-  #   VarStatus <- t(VarMatrix)
-  #   
-  #   ## -------------SECTION D: MMD MATRIX------------------------------------------
-  #   
-  #   MMDMatrix <- matrix(0, length(M_n[, 1]), length(M_n[, 1]))
-  #   dimnames(MMDMatrix) <- list(M_n[, 1], M_n[, 1])
-  #   
-  #   for (a in seq_along(MMDMatrix[, 1])) {
-  #     for (b in seq_along(MMDMatrix[1, ])) {
-  #       MMDVect <- vector("double", length(M_n[1, ]) - 1)
-  #       for (i in seq_along(MMDVect)) {
-  #         tmp <- thetadiff(M_n[a,i+1], M_p[a,i+1], M_n[b,i+1], M_p[b,i+1], theta)
-  #         tmp <- pmax(tmp, 0.01)
-  #         MMDVect[i] <- tmp
-  #       }
-  #       MMDMatrix[a, b] <- sum(MMDVect) / length(MMDVect)
-  #     }
-  #   }
-  #   
-  #   ## forced 0 when a sample is compared to itself
-  #   for (a in seq_along(MMDMatrix[,1])) { MMDMatrix[a,a] = 0 }
-  #   
-  #   ## -------------SECTION E: SD MATRIX-------------------------------------------
-  #   
-  #   ## standard deviation for MMD, Sjovold's formula
-  #   SDMatrix <- matrix(0, length(M_n[, 1]), length(M_n[, 1]))
-  #   dimnames(SDMatrix) <- list(M_n[, 1], M_n[, 1])
-  #   SDDiff <- function(nA, nB) {
-  #     (1 / nA + 1 / nB) ^ 2
-  #   }
-  #   
-  #   for (a in seq_along(MMDMatrix[, 1])) {
-  #     for (b in seq_along(MMDMatrix[1, ])) {
-  #       SDVect <- vector("double", length(M_n[1, ]) - 1)
-  #       for (i in seq_along(SDVect)) {
-  #         SDVect[i] <- SDDiff(M_n[a, i + 1], M_n[b, i + 1])
-  #       }
-  #       SDMatrix[a, b] <- sqrt(sum(SDVect) * 2 / length(SDVect) ^ 2)
-  #     }
-  #   }
-  #   
-  #   ## -------------SECTION F: SIGNIFICANCE MATRIX---------------------------------
-  #   
-  #   ## statistical significance
-  #   SigMatrix <- matrix(1, length(M_n[, 1]), length(M_n[, 1]))
-  #   dimnames(SigMatrix) <- list(M_n[, 1], M_n[, 1])
-  #   
-  #   for (a in seq_along(MMDMatrix[, 1])) {
-  #     for (b in seq_along(MMDMatrix[1, ])) {
-  #       dist <- MMDMatrix[a, b] / SDMatrix[a, b]
-  #       SigMatrix[a, b] = round((1 - pnorm(dist)) * 2, digits = 8)
-  #       if (MMDMatrix[a, b] < 0)
-  #         SigMatrix[a, b] = 1
-  #     }
-  #   }
-  #   list(MMDMatrix = MMDMatrix, SDMatrix = SDMatrix, SigMatrix = SigMatrix)
-  # }
-  
-  # getPCA <- function(df) {
-  #   for (i in 4:ncol(df))
-  #     df[,i] <- ifelse(is.na(df[,i]),
-  #                      mean(df[,i], na.rm = TRUE),
-  #                      df[,i])
-  #   tmp <- df[,-(1:3)]
-  #   inx <- apply(tmp,2, function(x) diff(range(x))) > 0
-  #   tmp <- tmp[,which(inx)]
-  #   
-  #   ggbiplot(princomp(tmp), groups = df[,3], ellipse=TRUE) +
-  #     ggtitle("PCA plot") + theme_classic() + xlab("") + ylab("")
-  # }
-  
+
 
   
 }

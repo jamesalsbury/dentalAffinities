@@ -1,0 +1,15 @@
+---
+title: "permDispGower"
+output: html_document
+params:
+  permDispGowerOutput: NA
+---
+
+```{r setup, include=FALSE}
+library(vegan)
+```
+
+```{r}
+print(params$permDispGowerOutput)
+```
+
