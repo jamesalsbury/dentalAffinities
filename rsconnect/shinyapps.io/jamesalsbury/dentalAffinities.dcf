@@ -5,10 +5,8 @@ account: jamesalsbury
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 8343212
-bundleId: 6858214
+bundleId: 7790394
 url: https://jamesalsbury.shinyapps.io/dentalAffinities/
-when: 1676645970.57653
-lastSyncTime: 1676645970.57653
 asMultiple: FALSE
 asStatic: FALSE
-ignoredFiles: exampleData.xlsx
+ignoredFiles: correlations.R|dataManipulationbothGroups.R|dataManipulationGroup1.R|dataManipulationGroup2.R|dataManipulationnoGroup.R|ExampleData/exampleData.xlsx|ExampleData/nina-sites-less-missing-data.xlsx|gower.R|nina-sites-modified-21feb.xlsx
