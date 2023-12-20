@@ -1,0 +1,46 @@
+---
+title: "corTable"
+output: html_document
+params:
+  corTableOutput: NA
+  corFlag: NA
+---
+
+
+```{r, echo = F}
+
+    
+    rowCallback <- c(
+      "function(row, data){",
+      "  for(var i=0; i<data.length; i++){",
+      "    if(data[i] === null){",
+      "      $('td:eq('+i+')', row).html('NA')",
+      "        .css({'color': 'rgb(151,151,151)', 'font-style': 'italic'});",
+      "    }",
+      "  }",
+      "}"
+    )
+    
+    data <-  params$corTableOutput
+    
+    if (is.null(data)){
+      x <- data.frame("Upload some data")
+      colnames(x) <- "Please upload some data"
+      x
+    } else {
+    
+    
+    datatable(data, options = list(rowCallback = JS(rowCallback))) %>% formatStyle(
+      columns = colnames(data),
+      backgroundColor = styleInterval(c(params$corFlag, 0.999, 1.001, 1000), c('white', 'lightgreen', 'lightblue', 'lightyellow', 'red'))
+    ) %>%
+      formatSignif(
+        columns = colnames(data),
+        digits = 3
+      )
+      
+    }
+    
+  
+```
+

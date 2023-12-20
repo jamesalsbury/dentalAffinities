@@ -11,6 +11,10 @@ library(DT)
 library(vegan)
 library(pairwiseAdonis)
 library(cluster)
+library(ggrepel)
+library(ggdendro)
+
+source("functions.R")
 
 ui <- fluidPage(
   useShinyjs(),
@@ -25,7 +29,7 @@ ui <- fluidPage(
                    fileInput("descriptivesFile", label = "Please upload a descriptives file here",accept = c(".csv", ".rds", ".xlsx")),
                    selectInput("groupTrait", label = "Grouping for trait frequencies",
                                choices = c("No grouping" = "nogroup", "Group1" = "group 1", "Group2" = "group 2", "Group 1 + Group 2" = "bothgroups")),
-                   selectInput("corMethod", label = "Correlation method",
+                   selectInput("corMethod", label = "Inter-variable correlation test",
                                choices = c("Kendall" = "kendall", "Pearson" = "pearson", "Spearman" = "spearman")),
                    hidden(numericInput("corFlag", label = "Flag correlations at > ", value = 0.499))
                  ),
@@ -211,8 +215,10 @@ ui <- fluidPage(
                             p("Distance matrix"),
                             tableOutput('distSummaryGower'),
                             downloadButton("downloaddistSummaryGower", "Download distance matrix"),
+                            p("PermDisp Test"),
                             textOutput("permDispGower"),
                             downloadButton("permDispGowerPDF", "Download perm disp"),
+                            p("PermAnova Test"),
                             textOutput("pairwiseAdonisGower"),
                             downloadButton("pairwiseAdonisGowerPDF", "Download pairwise adonis")
                      ))
@@ -588,7 +594,7 @@ server <- function(input, output, session) {
   }
   
   # cor_table <- function() {
-  #   
+  # 
   #   rowCallback <- c(
   #     "function(row, data){",
   #     "  for(var i=0; i<data.length; i++){",
@@ -599,16 +605,16 @@ server <- function(input, output, session) {
   #     "  }",
   #     "}"
   #   )
-  #   
+  # 
   #   di <-  doCorrelation()$corMatrix
-  #   
+  # 
   #   if (is.null(di)) {
   #     x <- data.frame("Upload data")
   #     colnames(x) <- "Please upload some data"
   #     x
   #   } else {
-  #     
-  #     
+  # 
+  # 
   #     x <- datatable(data, options = list(rowCallback = JS(rowCallback))) %>% formatStyle(
   #       columns = colnames(data),
   #       backgroundColor = styleInterval(c(input$corFlag, 0.999, 1.001, 1000), c('white', 'lightgreen', 'lightblue', 'lightyellow', 'red'))
@@ -672,12 +678,28 @@ server <- function(input, output, session) {
   )
   
   output$downloaddCorTable <- downloadHandler(
-    filename = "CorTable.csv",
+    filename = "corTable.html",
     content = function(file) {
-      write.csv(cor_table(), file, row.names = FALSE)
+      # Copy the report file to a temporary directory before processing it, in
+      # case we don't have write permissions to the current working dir (which
+      # can happen when deployed).
+      tempReport <- file.path(tempdir(), "corTable.Rmd")
+      file.copy("corTable.Rmd", tempReport, overwrite = TRUE)
+      
+      # Set up parameters to pass to Rmd document
+      params <- list(corTableOutput =  doCorrelation()$corMatrix, corFlag = input$corFlag)
+      
+      # Knit the document, passing in the `params` list, and eval it in a
+      # child of the global environment (this isolates the code in the document
+      # from the code in this app).
+      rmarkdown::render(tempReport, output_file = file,
+                        params = params,
+                        envir = new.env(parent = globalenv())
+      )
     }
   )
-
+  
+  
 
   observe({
     
@@ -744,10 +766,10 @@ server <- function(input, output, session) {
     
     # side handling
     if (input$init_traitMMD == "RIGHT") {
-      df <- df[,c(1:3,seq(4, ncol(df), 2))]
+      df <- df[,c(1:3,seq(5, ncol(df), 2))]
     }
     if (input$init_traitMMD == "LEFT") {
-      df <- df[,c(1:3,seq(5, ncol(df), 2))]
+      df <- df[,c(1:3,seq(4, ncol(df), 2))]
     }
     if (input$init_traitMMD== "MIN") {
       for (i in seq(5, ncol(df), 2)) {
@@ -901,7 +923,7 @@ server <- function(input, output, session) {
     if (is.null(mat)){
       return(grid::grid.text('Too much missing data, try removing some variables in the chosen group'))
     } else {
-      dentalAffinities::getMDS(mat$MMDMatrix)
+      getMDS(mat$MMDMatrix)
     }
     
   }
@@ -936,7 +958,7 @@ server <- function(input, output, session) {
     if (is.null(mat)){
       return(grid::grid.text('Too much missing data, try removing some variables in the chosen group'))
     } else {
-      dentalAffinities::getClust(mat$MMDMatrix)
+      getClust(mat$MMDMatrix)
     }
   }
   
@@ -1127,10 +1149,10 @@ server <- function(input, output, session) {
     
     # side handling
     if (input$init_traitMahalanobis == "RIGHT") {
-      df <- df[,c(1:3,seq(4, ncol(df), 2))]
+      df <- df[,c(1:3,seq(5, ncol(df), 2))]
     }
     if (input$init_traitMahalanobis == "LEFT") {
-      df <- df[,c(1:3,seq(5, ncol(df), 2))]
+      df <- df[,c(1:3,seq(4, ncol(df), 2))]
     }
     if (input$init_traitMahalanobis== "MIN") {
       for (i in seq(5, ncol(df), 2)) {
@@ -1283,7 +1305,7 @@ server <- function(input, output, session) {
       return(grid::grid.text('Please, first upload a file with data'))
     }
     mat <- getDistMahalanobis()
-    dentalAffinities::getMDS(mat$MMDMatrix)
+    getMDS(mat$MMDMatrix)
   }
   
   ggCzekanowskiMahalanobis_plot <- function(){
@@ -1309,7 +1331,7 @@ server <- function(input, output, session) {
       return(grid::grid.text('Please, first upload a file with data'))
     }
     mat <- getDistMahalanobis()
-    dentalAffinities::getClust(mat$MMDMatrix)
+    getClust(mat$MMDMatrix)
   }
   
   distSummaryMahalanobis_table <- function(){
@@ -1505,10 +1527,10 @@ server <- function(input, output, session) {
     
     # side handling
     if (input$init_traitGower == "RIGHT") {
-      df <- df[,c(1:3,seq(4, ncol(df), 2))]
+      df <- df[,c(1:3,seq(5, ncol(df), 2))]
     }
     if (input$init_traitGower == "LEFT") {
-      df <- df[,c(1:3,seq(5, ncol(df), 2))]
+      df <- df[,c(1:3,seq(4, ncol(df), 2))]
     }
     if (input$init_traitGower== "MIN") {
       for (i in seq(5, ncol(df), 2)) {
@@ -1621,6 +1643,7 @@ server <- function(input, output, session) {
     if (is.null(di)) {
       return(NULL)
     }
+    set.seed(1234)
     y <- vegdist(di[,4:ncol(di)], method="gower", na.rm = T)
     betadisper(y, group = di$GROUP1, add = T)
   }
@@ -1628,12 +1651,14 @@ server <- function(input, output, session) {
   #dendrogram Gower
   
   ggClustGower_plot <- function(){
-    di <- dataInputGower()
+    di <- dataInputGower() 
+    
     if (is.null(di)) {
       return(NULL)
     }
+    set.seed(1234)
     y <- vegdist(di[,4:ncol(di)], method="gower", na.rm = T)
-    dentalAffinities::getClust(y)
+    getClust(y)
   }
   
   
@@ -1642,6 +1667,7 @@ server <- function(input, output, session) {
     if (is.null(di)) {
       return(NULL)
     }
+    set.seed(1234)
     y <- vegdist(di[,4:ncol(di)], method="gower", na.rm = T)
     x <- as.data.frame(as.matrix(y))
     x
@@ -1652,6 +1678,7 @@ server <- function(input, output, session) {
     if (is.null(di)) {
       return(NULL)
     }
+    set.seed(1234)
     y <- vegdist(di[,4:ncol(di)], method="gower", na.rm = T)
     y
   }
@@ -1661,6 +1688,7 @@ server <- function(input, output, session) {
     if (is.null(di)) {
       return(NULL)
     }
+    set.seed(1234)
     y <- vegdist(di[,4:ncol(di)], method="gower", na.rm = T)
     pairwise.adonis2(y~GROUP1, data = di, p.adjust = "holm")
   }

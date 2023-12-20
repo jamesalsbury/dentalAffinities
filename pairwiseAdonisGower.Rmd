@@ -9,7 +9,7 @@ params:
 library(vegan)
 ```
 
-```{r}
+```{r, echo = F}
 print(params$pairwiseAdonisGowerOutput)
 ```
 
