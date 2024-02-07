@@ -5,7 +5,7 @@ account: jamesalsbury
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 8343212
-bundleId: 7965256
+bundleId: 8229721
 url: https://jamesalsbury.shinyapps.io/dentalAffinities/
 asMultiple: FALSE
 asStatic: FALSE

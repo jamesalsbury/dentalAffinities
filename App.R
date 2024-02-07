@@ -13,6 +13,8 @@ library(pairwiseAdonis)
 library(cluster)
 library(ggrepel)
 library(ggdendro)
+library(viridis)
+library(ggplot2)
 
 source("functions.R")
 
@@ -227,7 +229,88 @@ ui <- fluidPage(
                
       ),
       tabPanel("Help",
-      )
+               HTML("<p><u>Overview</u></p>"),
+               HTML("<p>dentalAffinities provides tools for analysing non-metric data using Mean Measure of Divergence, Mahalanobis D 2 and Gower coefficients. While we do our best to ensure that the software provides theoretically grounded and accurate results, 
+                    we do not hold responsibility for its (mis)use. This is a free tool to facilitate statistical analysis, users are expected to have the required expertise and background for evaluating the appropriateness of their analysis and results.</p>"),
+               HTML("<p>Cite this as: ?</p>"),
+               HTML("<p><u>Template file</u></p>"),
+               HTML("<p>We provide a template file which must be used with the app.</p>"),
+               downloadButton("downloadTemplate", label = "Download template data"),
+               HTML("<p>This file is for raw, un-pooled data; the app has been designed to dichotomise/binarize and group the results for you.</p>"),
+               HTML("<p>Do not change the column names for SKELETON, GROUP1, GROUP2, but you may use any name/identifier under these columns. GROUP1 and GROUP2 have been provided to give more flexibility for the user to choose between multiple classifiers or their 
+                    combination – as an example, GROUP1 could be site data and GROUP2 could be sex.</p>"),
+               HTML("<p>You may change the number and name of traits to whichever you choose.</p>"),
+               HTML("<p>Do not alter the cell THRESHOLD. You may change the threshold numbers/breakpoints for each traits to whatever you choose: the value must be placed in the cell below each trait.</p>"),
+               HTML("<p><u>Descriptives</u></p>"),
+               HTML("<p>The descriptives have been designed to offer a basic frequency (n) table of your data by any grouping of your choosing; you can either choose to group by one variable in either GROUP1 or GROUP2 or a combination of both, i.e. GROUP1+GROUP2.</p>"),
+               HTML("<p>You may also choose to test inter-trait correlation of your sample; this analysis pools all data and generates a correlation matrix of the raw values. The lower diagonal shows the number of observations, the upper diagonal shows the correlation value.</p>"),
+               HTML("<p><u>Mean Measure of Divergence (MMD)</u></p>"),
+               HTML("<p>MMD calculates distances between groups by using the number of positive and overall observations of traits together, combining the individual trait distances into one overall value between the groups. An increase in the distance value indicates increasing distance or
+                    dissimilarity between groups. The app uses a modified version of <span style='color: blue;'>Smith’s (1972)</span> MMD as described by <span style='color: blue;'>Sołtysiak (2011)</span>. Variables that produce negative distance are corrected to zero.</p>"),
+               HTML("<p>You may choose to use MMD with either Anscombe or Freeman and Tukey angular transformation, with an additional optional small sample size correction with either Freeman and Tukey or Grewal as described in <span style='color: blue;'>Harris and Sjøvold (2004)</span>. There are further pre-analysis options:</p>
+<ul>
+  <li><b>Initial trait selection</b>: All traits is the default option, but in case you have organised traits by side (left and right), you may 1) choose a side, 2) tell the app to choose the higher or lower score, or 3) generate an average of left and right. If you decide to use any of these three options, the app assumes each variable/column
+  is paired left and right, in this order (left on the left, right on the right) and select accordingly. Please note that the correlation test does not have this option available.
+  </li>
+  <li><b>Binarization</b>: The raw data can be dichotomised either by using 1) user-defined values (from the THRESHOLD row of the file), 2) balanced, or 3) highest X 2 values.
+  </li>
+  <li><b>Plots show</b>: Offers an option to use different (GROUP1 or GROUP2) or combined (GROUP1+GROUP2) grouping variables. Under the drop-down menu, options become available to select/de-select group variables, initiating a real-time update in the results.</li>
+</ul>"),
+               HTML("<p><u>Results</u></p>"),
+               HTML("<p><b>MDS diagram</b>. Calls isoMDS, a non-metric multidimensional tool for visualising non-parametric data, from package MASS. The plot is produced using ggplot <span style='color: blue;'>(Wickham 2016)</span>.</p>"),
+               HTML("<p><b>Czekanowski diagram</b>. Based on Czekanowski diagrams as described in http://antropologia.uw.edu.pl/MaCzek/maczek.html. The size of the squares visualises the proximity/similarity of the groups. The plot is produced using ggplot <span style='color: blue;'>(Wickham 2016)</span>.</p>"),
+               HTML("<p><b>Dendrogram</b>. The app calls the function agnes from the package cluster <span style='color: blue;'>(Maechler et al 2022)</span>, using Ward’s method which calculates the sum of the square of the distances. Results are plotted using function ggdendrogram from the package dendextend <span style='color: blue;'>(Galili et al 2023)</span>.</p>"),
+               HTML("<p><b>PCA plot</b>. Using the princomp function from base R, the app performs a principal component analysis on the raw data and plots the eigenvectors for each variable. The plot is produced using ggbiplot <span style='color: blue;'>(Vu and Friendly 2023)</span>.</p>"),
+               HTML("<p><b>Matrices</b>. The app produces a distance, SD and significance matrix that can be dowloaded as Comma Separated Values Excel file.</p>"),
+               HTML("<p><u>Mahalanobis D2</u></p>"),
+               HTML("<p> D2 calculates weighted average correlations for each sample using binary data. It can adjust for small sample sizes and account for any residual inter-trait correlation but it cannot cope with missing data; thus, the app removes missing data from the matrix. The code is based 
+                    on Lyle W. Konigsberg’s scripts (tdistR.zip) http://lylek.ucoz.org/index.html with some additional cleaning and regularisation. Variables that produce negative distance are corrected to zero.</p>"),
+               HTML("<p>There are some pre-analysis options:</p>
+<ul>
+  <li><b>Initial trait selection</b>: All traits is the default option, but in case you have organised traits by side (left and right), you may 1) choose a side, 2) tell the app to choose the higher or lower score, or 3) generate an average of left and right. If you decide to use any of these three options, the app assumes each variable/column
+  is paired left and right, in this order (left on the left, right on the right) and select accordingly. Please note that the correlation test does not have this option available.
+  </li>
+  <li><b>Binarization</b>: The raw data can be dichotomised either by using 1) user-defined values (from the THRESHOLD row of the file), 2) balanced, or 3) highest X 2 values.
+  </li>
+  <li><b>Plots show</b>: Offers an option to use different (GROUP1 or GROUP2) or combined (GROUP1+GROUP2) grouping variables. Under the drop-down menu, options become available to select/de-select group variables, initiating a real-time update in the results.</li>
+</ul>"),
+               HTML("<p><u>Results</u></p>"),
+               HTML("<p><b>MDS diagram</b>. Calls isoMDS, a non-metric multidimensional tool for visualising non-parametric data, from package MASS. The plot is produced using ggplot <span style='color: blue;'>(Wickham 2016)</span>.</p>"),
+               HTML("<p><b>Czekanowski diagram</b>. Based on Czekanowski diagrams as described in http://antropologia.uw.edu.pl/MaCzek/maczek.html. The size of the squares visualises the proximity/similarity of the groups. The plot is produced using ggplot <span style='color: blue;'>(Wickham 2016)</span>.</p>"),
+               HTML("<p><b>Dendrogram</b>. The app calls the function agnes from the package cluster <span style='color: blue;'>(Maechler et al 2022)</span>, using Ward’s method which calculates the sum of the square of the distances. Results are plotted using function ggdendrogram from the package dendextend <span style='color: blue;'>(Galili et al 2023)</span>.</p>"),
+               HTML("<p><b>PCA plot</b>. Using the princomp function from base R, the app performs a principal component analysis on the raw data and plots the eigenvectors for each variable. The plot is produced using ggbiplot <span style='color: blue;'>(Vu and Friendly 2023)</span>.</p>"),
+               HTML("<p><b>Matrices</b>. The app produces a distance, SD and significance matrix that can be dowloaded as Comma Separated Values Excel file.</p>"),
+               HTML("<p><u>Gower</u></p>"),
+               HTML("<p>Gower coefficients measure the difference between observations, beginning by computing the distance between pairs and then combining the distances into a single value per record-pair <span style='color: blue;'>(Gower 1971)</span>. The Gower distance matrix was generated using the function xx. For an automated output, 
+                    the test is performed on dichotomised values.</p>"),
+               HTML("<p>There are some pre-analysis options:</p>
+<ul>
+  <li><b>Initial trait selection</b>: All traits is the default option, but in case you have organised traits by side (left and right), you may 1) choose a side, 2) tell the app to choose the higher or lower score, or 3) generate an average of left and right. If you decide to use any of these three options, the app assumes each variable/column
+  is paired left and right, in this order (left on the left, right on the right) and select accordingly. Please note that the correlation test does not have this option available.
+  </li>
+  <li><b>Binarization</b>: The raw data can be dichotomised either by using 1) user-defined values (from the THRESHOLD row of the file), 2) balanced, or 3) highest X 2 values.
+  </li>
+  <li><b>Plots show</b>: Offers an option to use different (GROUP1 or GROUP2) or combined (GROUP1+GROUP2) grouping variables. Under the drop-down menu, options become available to select/de-select group variables, initiating a real-time update in the results.</li>
+</ul>"),
+               HTML("<p><u>Results</u></p>"),
+               HTML("<p><b>PCoA plot</b>. Principal Coordinate Analysis draws from the output of xx.</p>"),
+               HTML("<p><b>Dendrogram</b>. The app calls the function agnes from the package cluster <span style='color: blue;'>(Maechler et al 2022)</span>, using Ward’s method which calculates the sum of the square of the distances. Results are plotted using function ggdendrogram from the package dendextend <span style='color: blue;'>(Galili et al 2023)</span>.</p>"),
+               HTML("<p><b>Distance matrix</b>. As Gower distance analysis generates distances for each row, the file is potentially too large to display in the app but it can be dowloaded as a as Comma Separated Values Excel file.</p>"),
+               HTML("<p><b>Perm Disp</b>. The app calls for the function betadisper in the package vegan <span style='color: blue;'>(Oksanen et al 2016)</span>. This test measures the multivariate homogeneity of groups dispersions (variances) by reducing the original distances to principal coordinates. This file can be dowloaded as an HTML file.</p>"),
+               HTML("<p><b>PermANOVA Test</b>. The app calls for the function pairwise.adonis2 <span style='color: blue;'>(Martinez Arbizu 2020)</span>, a wrapper function for the function adonis2 from package vegan. This is a multi-level permutational ANOVA test that can detect differences in group mean location (or direction) and group dispersion (spread). 
+                    This file can be dowloaded as an HTML file.</p>"),
+               HTML("<p><u>References</u></p>"),
+               HTML("<p>Galili, T. et al. 2023. dendextend: Extending &#39;dendrogram&#39; Functionality in R. https://CRAN.R-project.org/package=dendextend.</p>"),
+               HTML("<p>Gower, J. C. 1971. A General Coefficient of Similarity and Some of Its Properties. Biometrics, 27 (4),857-871.</p>"),
+               HTML("<p>Harris, E. F., Sjøvold, T. 2004. Calculation of Smith’s mean measure of divergence for intergroup comparisons using nonmetric data. Dental Anthropology, (17), 83-93.</p>"),
+               HTML("<p>Maechler, M., Rousseeuw, P., Struyf, A., Hubert, M., Hornik, K. 2022. cluster: Cluster Analysis Basics and Extensions. https://CRAN.R-project.org/package=cluster.</p>"),
+               HTML("<p>Martinez Arbizu, P. 2020. pairwiseAdonis: Pairwise multilevel comparison using adonis. R package version 0.4, https://github.com/pmartinezarbizu/pairwiseAdonis.</p>"),
+               HTML("<p>Oksanen, J. et al 2022. vegan: Community Ecology Package_. R package version 2.6-4, https://CRAN.R-project.org/package=vegan.</p>"),
+               HTML("<p>Smith, C. A. B. 1972. Coefficients of biological distance. Annals of Human Genetics, (36), 241-245.</p>"),
+               HTML("<p>Sołtysiak, A. 2011. An R script for Smith’s mean measure of divergence. Bioarchaeology of the Near East 5, 21–44.</p>"),
+               HTML("<p>Vu, V., Friendly, M. 2023. ggbiplot: A Grammar of Graphics Implementation of Biplots_. R package version 0.6.1, https://CRAN.R-project.org/package=ggbiplot.</p>"),
+               HTML("<p>Wickham, H. 2016. ggplot2: Elegant Graphics for Data Analysis. New York: Springer-Verlag.</p>")
+               )
     )
   )
 )
@@ -241,6 +324,18 @@ server <- function(input, output, session) {
   observeEvent(input$descriptivesFile,{
     v$descUpload <- "yes"
   })
+  
+  
+  output$downloadTemplate <- downloadHandler(
+    filename <- function() {
+      paste("Template_file_dentalAffinities.xlsx")
+    },
+    
+    content <- function(file) {
+      file.copy("Template_file_dentalAffinities.xlsx", file)
+    },
+    contentType = ""
+  )
   
   
   inputDescData <- reactive({
@@ -1292,7 +1387,9 @@ server <- function(input, output, session) {
       res <- dentalAffinities::calculateMMD(data.frame(tmp$Mn), as.data.frame(tmp$Mp), thetadiff, theta)
     }
     if (selected[1] == "MAH") {
-      res <- dentalAffinities::calculateD2(df)
+      if (input$groupChoiceMahalanobis=="group1"){res <- calculateD2_group1(df)}
+      if (input$groupChoiceMahalanobis=="group2"){res <- calculateD2_group2(df)}
+      if (input$groupChoiceMahalanobis=="bothgroups"){res <- calculateD2_bothgroups(df)}
     }
     res
   })
@@ -1637,16 +1734,49 @@ server <- function(input, output, session) {
   })
   
   
-  #Functions to create the plots/tables
+
   ggMDSGower_plot <- function(){
     di <- dataInputGower()
     if (is.null(di)) {
       return(NULL)
     }
     set.seed(1234)
-    y <- vegdist(di[,4:ncol(di)], method="gower", na.rm = T)
-    betadisper(y, group = di$GROUP1, add = T)
+    y <- vegdist(di[,4:ncol(di)], method="gower", na.rm = TRUE)
+    mds <- cmdscale(y)
+    
+    # Convert MDS result to data frame
+    mds_df <- data.frame(x = mds[,1], y = mds[,2], group = di$GROUP1)
+    
+    # Create ggplot MDS plot with ellipses
+    # p <- ggplot(mds_df, aes(x, y, color = group)) +
+    #   geom_point() +
+    #   stat_ellipse(geom = "polygon", level = 0.95, alpha = 0.2) +  # Add ellipses
+    #   scale_color_viridis_d() +  # Use colorblind-friendly palette
+    #   labs(title = "MDS Plot based on Gower Dissimilarities",
+    #        x = "MDS1", y = "MDS2") +
+    #   theme_bw()  # Set theme to have a white background
+    
+    
+    
+    p <- ggplot(mds_df, aes(x, y, color = group)) +
+      geom_point() +
+      labs(x = "PCoA 1", y = "PCoA 2") +
+      theme(legend.position="top") +
+      theme(legend.title = element_blank()) +
+      stat_ellipse(level = 0.95) +
+      guides(shape=guide_legend(nrow=1)) +
+      guides(size = FALSE) +
+      theme(legend.background = element_rect(fill = "white"),
+            legend.key = element_rect(fill = "white", color = NA))+
+      theme(panel.border = element_rect(linetype = "solid", fill = NA),
+            panel.background = element_rect(fill = "white")) +
+      theme(axis.text.x = element_text(angle = 0, hjust = 1))
+    
+    
+    print(p)
   }
+  
+  
   
   #dendrogram Gower
   
@@ -1679,7 +1809,7 @@ server <- function(input, output, session) {
       return(NULL)
     }
     set.seed(1234)
-    y <- vegdist(di[,4:ncol(di)], method="gower", na.rm = T)
+    y <- vegdist(di[,4:ncol(di)], method="gower", na.rm = T, binary = T)
     y
   }
   
@@ -1695,12 +1825,14 @@ server <- function(input, output, session) {
   
   #Functions to output the plots/tables
   output$ggMDSGower <- renderPlot({
-    if (is.null(ggMDSGower_plot())){
+    gg_plot <- ggMDSGower_plot()
+    if (is.null(gg_plot)) {
       grid::grid.text('Please, first upload a file with data')
     } else {
-      plot(ggMDSGower_plot())
+      gg_plot + ggtitle("PCoA plot")
     }
   })
+  
   
   output$ggClustGower <- renderPlot({
     if (is.null(ggClustGower_plot())){
@@ -1851,7 +1983,7 @@ server <- function(input, output, session) {
   get_Mn_Mp_bothgroups <- function(binary_trait_data) {
     combinedGroup <- rep(NA, nrow(binary_trait_data))
     for (i in 1:nrow(binary_trait_data)){
-      combinedGroup[i] <- paste0(binary_trait_data[i,]$GROUP1, "+", binary_trait_data[i,]$GROUP2)
+      combinedGroup[i] <- paste0(binary_trait_data[i,2], "+", binary_trait_data[i,3])
     }
     binary_trait_data$combinedGroup <- combinedGroup
     binary_trait_data <- binary_trait_data[,c(1:3, ncol(binary_trait_data), 4:(ncol(binary_trait_data)-1))]
@@ -1865,8 +1997,342 @@ server <- function(input, output, session) {
     
     list(Mn = Mn, Mp = Mp)
   }
+  
 
-
+  calculateD2_group1 <- function(binary_trait_data, deltamin= 0.01) {
+    # remove columns with wrong data (only NA or 1)
+    idx <- c(1:3,which(apply(binary_trait_data[,-(1:3)], 2, function(x) length(unique(na.omit(x)))) > 1) + 3)
+    binary_trait_data <- binary_trait_data[,idx]
+    # stop
+    colnames(binary_trait_data)[1:3] <- c("id", "site", "sex")
+    X <- binary_trait_data[,-(1:3)]
+    binary_trait_data <- binary_trait_data[!is.na(binary_trait_data$site),]
+    tmp <- get_Mn_Mp_group_1(binary_trait_data)
+    Sites <- tmp[[1]][1]
+    Mn <- tmp[[1]][-1]
+    Mp <- tmp[[2]][-1]
+    # remove traits with 0 observations
+    idx <- which(!apply(Mn == 0, 2, any))
+    X <- X[,idx]
+    Mn <- Mn[,idx]
+    Mp <- Mp[,idx]
+    
+    n0 = Mn*Mp
+    n1 = Mn*(1-Mp)
+    # correction for 0
+    n0[n1 == 0] = n0[n1 == 0] - 0.5
+    n1[n1 == 0] = .5
+    n1[n0 == 0] = n1[n0 == 0] - 0.5
+    n0[n0 == 0] = .5
+    # calculate z
+    z <- apply(n1/(n0+n1), 1:2, qnorm)
+    rownames(z) = Sites$group1
+    
+    N.sites = nrow(Sites)
+    N.traits = ncol(X)
+    n.cases = nrow(X)
+    
+    # here calculate R
+    R = diag(N.traits)
+    N.R = diag(N.traits)
+    n.unique=N.traits*(N.traits-1)/2
+    for(k in 1:N.sites)
+    {
+      icount = 0
+      sto = X[binary_trait_data[,2] == Sites$group1[k],]
+      for(i in 1:(N.traits-1)){
+        for(j in (i+1):N.traits){
+          icount=icount+1
+          trait.ij=as.vector(table(sto[,c(j,i)]))
+          if(sum(trait.ij==0)>=2 | length(trait.ij)<4){
+            r=0
+            calc.please=F
+          } else{
+            calc.please=T
+            KDELTA=1
+            DELTA=0
+            if(trait.ij[1]==0 | trait.ij[4]==0) KDELTA=2
+            if(trait.ij[2]==0 | trait.ij[3]==0) KDELTA=KDELTA+2
+            
+            if(KDELTA==2) DELTA=.5
+            if(KDELTA==3) DELTA=-.5
+            if(trait.ij[1]==0 & trait.ij[4]==0){
+              r=-1
+              calc.please=F
+            }
+            if(trait.ij[2]==0 & trait.ij[3]==0){
+              r=1
+              calc.please=F
+            }
+            trait.ij=trait.ij+DELTA*c(1,-1,-1,1)
+          }
+          
+          if(calc.please==T) r = psych::tetrachoric(trait.ij,correct=F)$rho
+          
+          N.cell = sum(trait.ij)
+          
+          N.R[i,j] = N.R[i,j] + N.cell
+          N.R[j,i] = N.R[j,i] + N.cell
+          
+          R[i,j] = R[i,j] + r * N.cell
+          R[j,i] = R[j,i] + r * N.cell
+        }
+      }
+    }
+    
+    R = R/N.R
+    rownames(R) = colnames(X)
+    colnames(R) = colnames(X)
+    
+    # stop calculations of R
+    
+    I = diag(N.sites)
+    o = rep(1,N.sites)
+    J = o %*% t(o)
+    w = o/sum(o)
+    Delta = (I - o %*% t(w)) %*% z
+    Cp = Delta %*% solve(R) %*% t(Delta)
+    D2 = (Cp*I) %*% J + J %*% (Cp*I) - 2*Cp
+    
+    # replace negative values
+    D2[D2 <= 0] <- deltamin
+    
+    rownames(D2) = Sites$group1
+    colnames(D2) = Sites$group1
+    
+    list(MMDMatrix = D2, SDMatrix = NULL, SigMatrix = NULL)
+  }
+  
+  
+  calculateD2_group2 <- function(binary_trait_data, deltamin= 0.01) {
+    # remove columns with wrong data (only NA or 1)
+    idx <- c(1:3,which(apply(binary_trait_data[,-(1:3)], 2, function(x) length(unique(na.omit(x)))) > 1) + 3)
+    binary_trait_data <- binary_trait_data[,idx]
+    # rename columns
+    colnames(binary_trait_data)[1:3] <- c("id", "site", "sex")
+    X <- binary_trait_data[,-(1:3)]
+    binary_trait_data <- binary_trait_data[!is.na(binary_trait_data$sex),] # filter out rows with NA in sex
+    tmp <- get_Mn_Mp_group_2(binary_trait_data)
+    Sexes <- tmp[[1]][1]  # Assuming 'site' is replaced with 'sex' in the output
+    Mn <- tmp[[1]][-1]
+    Mp <- tmp[[2]][-1]
+    # remove traits with 0 observations
+    idx <- which(!apply(Mn == 0, 2, any))
+    X <- X[,idx]
+    Mn <- Mn[,idx]
+    Mp <- Mp[,idx]
+    
+    n0 = Mn*Mp
+    n1 = Mn*(1-Mp)
+    # correction for 0
+    n0[n1 == 0] = n0[n1 == 0] - 0.5
+    n1[n1 == 0] = .5
+    n1[n0 == 0] = n1[n0 == 0] - 0.5
+    n0[n0 == 0] = .5
+    # calculate z
+    z <- apply(n1/(n0+n1), 1:2, qnorm)
+    rownames(z) = Sexes$group2
+    
+    N.sexes = nrow(Sexes)
+    N.traits = ncol(X)
+    n.cases = nrow(X)
+    
+    # calculate R
+    R = diag(N.traits)
+    N.R = diag(N.traits)
+    n.unique=N.traits*(N.traits-1)/2
+    for(k in 1:N.sexes)
+    {
+      icount = 0
+      sto = X[binary_trait_data[,3] == Sexes$group2[k],]
+      for(i in 1:(N.traits-1)){
+        for(j in (i+1):N.traits){
+          icount=icount+1
+          trait.ij=as.vector(table(sto[,c(j,i)]))
+          if(sum(trait.ij==0)>=2 | length(trait.ij)<4){
+            r=0
+            calc.please=F
+          } else{
+            calc.please=T
+            KDELTA=1
+            DELTA=0
+            if(trait.ij[1]==0 | trait.ij[4]==0) KDELTA=2
+            if(trait.ij[2]==0 | trait.ij[3]==0) KDELTA=KDELTA+2
+            
+            if(KDELTA==2) DELTA=.5
+            if(KDELTA==3) DELTA=-.5
+            if(trait.ij[1]==0 & trait.ij[4]==0){
+              r=-1
+              calc.please=F
+            }
+            if(trait.ij[2]==0 & trait.ij[3]==0){
+              r=1
+              calc.please=F
+            }
+            trait.ij=trait.ij+DELTA*c(1,-1,-1,1)
+          }
+          
+          if(calc.please==T) r = psych::tetrachoric(trait.ij,correct=F)$rho
+          
+          N.cell = sum(trait.ij)
+          
+          N.R[i,j] = N.R[i,j] + N.cell
+          N.R[j,i] = N.R[j,i] + N.cell
+          
+          R[i,j] = R[i,j] + r * N.cell
+          R[j,i] = R[j,i] + r * N.cell
+        }
+      }
+    }
+    
+    R = R/N.R
+    rownames(R) = colnames(X)
+    colnames(R) = colnames(X)
+    
+    # stop calculations of R
+    
+    I = diag(N.sexes)
+    o = rep(1,N.sexes)
+    J = o %*% t(o)
+    w = o/sum(o)
+    Delta = (I - o %*% t(w)) %*% z
+    Cp = Delta %*% solve(R) %*% t(Delta)
+    D2 = (Cp*I) %*% J + J %*% (Cp*I) - 2*Cp
+    
+    # replace negative values
+    D2[D2 <= 0] <- deltamin
+    
+    rownames(D2) = Sexes$group2
+    colnames(D2) = Sexes$group2
+    
+    list(MMDMatrix = D2, SDMatrix = NULL, SigMatrix = NULL)
+  }
+  
+  calculateD2_bothgroups <- function(binary_trait_data, deltamin = 0.01) {
+    # remove columns with wrong data (only NA or 1)
+    idx <- c(1:3, which(apply(binary_trait_data[, -(1:3)], 2, function(x) length(unique(na.omit(x)))) > 1) + 3)
+    binary_trait_data <- binary_trait_data[, idx]
+    # rename columns
+    colnames(binary_trait_data)[1:3] <- c("id", "group1", "group2")
+    X <- binary_trait_data[, -(1:3)]
+    
+    # Combine groups
+    tmp <- get_Mn_Mp_bothgroups(binary_trait_data)
+    BothGroups <- tmp[[1]][1]  # Assuming 'bothgroups' is the first element
+    Mn <- tmp[[1]][-1]
+    Mp <- tmp[[2]][-1]
+    
+    
+    
+    
+    combinedGroup <- rep(NA, nrow(binary_trait_data))
+    for (i in 1:nrow(binary_trait_data)){
+      combinedGroup[i] <- paste0(binary_trait_data[i,2], "+", binary_trait_data[i,3])
+    }
+    binary_trait_data$combinedGroup <- combinedGroup
+    binary_trait_data <- binary_trait_data[,c(1:3, ncol(binary_trait_data), 4:(ncol(binary_trait_data)-1))]
+    colnames(binary_trait_data)[1:4] <- c("id", "group1", "group2", "bothgroups")
+    
+  
+    
+    
+    # remove traits with 0 observations
+    idx <- which(!apply(Mn == 0, 2, any))
+    X <- X[, idx]
+    Mn <- Mn[, idx]
+    Mp <- Mp[, idx]
+    
+    n0 = Mn * Mp
+    n1 = Mn * (1 - Mp)
+    # correction for 0
+    n0[n1 == 0] = n0[n1 == 0] - 0.5
+    n1[n1 == 0] = .5
+    n1[n0 == 0] = n1[n0 == 0] - 0.5
+    n0[n0 == 0] = .5
+    # calculate z
+    z <- apply(n1 / (n0 + n1), 1:2, qnorm)
+    rownames(z) = BothGroups$bothgroups
+    
+    N.BothGroups = nrow(BothGroups)
+    N.traits = ncol(X)
+    n.cases = nrow(X)
+    
+    # calculate R
+    R = diag(N.traits)
+    N.R = diag(N.traits)
+    n.unique = N.traits * (N.traits - 1) / 2
+    for (k in 1:N.BothGroups) {
+      icount = 0
+      sto = X[binary_trait_data$bothgroups == BothGroups$bothgroups[k], ]
+      for (i in 1:(N.traits - 1)) {
+        for (j in (i + 1):N.traits) {
+          icount = icount + 1
+          trait.ij = as.vector(table(sto[, c(j, i)]))
+          if (sum(trait.ij == 0) >= 2 | length(trait.ij) < 4) {
+            r = 0
+            calc.please = F
+          } else {
+            calc.please = T
+            KDELTA = 1
+            DELTA = 0
+            if (trait.ij[1] == 0 | trait.ij[4] == 0) KDELTA = 2
+            if (trait.ij[2] == 0 | trait.ij[3] == 0) KDELTA = KDELTA + 2
+            
+            if (KDELTA == 2) DELTA = .5
+            if (KDELTA == 3) DELTA = -.5
+            if (trait.ij[1] == 0 & trait.ij[4] == 0) {
+              r = -1
+              calc.please = F
+            }
+            if (trait.ij[2] == 0 & trait.ij[3] == 0) {
+              r = 1
+              calc.please = F
+            }
+            trait.ij = trait.ij + DELTA * c(1, -1, -1, 1)
+          }
+          
+          if (calc.please == T) r = psych::tetrachoric(trait.ij, correct = F)$rho
+          
+          N.cell = sum(trait.ij)
+          
+          N.R[i, j] = N.R[i, j] + N.cell
+          N.R[j, i] = N.R[j, i] + N.cell
+          
+          R[i, j] = R[i, j] + r * N.cell
+          R[j, i] = R[j, i] + r * N.cell
+        }
+      }
+    }
+    
+    R = R / N.R
+    rownames(R) = colnames(X)
+    colnames(R) = colnames(X)
+    
+    # stop calculations of R
+    
+    I = diag(N.BothGroups)
+    o = rep(1, N.BothGroups)
+    J = o %*% t(o)
+    w = o / sum(o)
+    Delta = (I - o %*% t(w)) %*% z
+    Cp = Delta %*% solve(R) %*% t(Delta)
+    D2 = (Cp * I) %*% J + J %*% (Cp * I) - 2 * Cp
+    
+    # replace negative values
+    D2[D2 <= 0] <- deltamin
+    
+    rownames(D2) = BothGroups$bothgroups
+    colnames(D2) = BothGroups$bothgroups
+    
+    list(MMDMatrix = D2, SDMatrix = NULL, SigMatrix = NULL)
+  }
+  
+  
+  
+  
+  
+  
+  
   
 }
 
