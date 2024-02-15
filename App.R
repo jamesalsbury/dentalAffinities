@@ -25,6 +25,7 @@ ui <- fluidPage(
     
     tabsetPanel(
       
+      #Descriptives UI ---------------------------------
       tabPanel("Descriptives",
                sidebarLayout(
                  sidebarPanel = sidebarPanel(
@@ -44,6 +45,7 @@ ui <- fluidPage(
                )
                
       ),
+      #MMD Analysis UI ---------------------------------
       tabPanel("Analysis - MMD",
                sidebarLayout(
                  sidebarPanel = sidebarPanel(
@@ -110,14 +112,11 @@ ui <- fluidPage(
                  )
                
       ),
+      #Mahalanobis Analysis UI ---------------------------------
       tabPanel("Analysis - Mahalanobis",
                sidebarLayout(
                  sidebarPanel = sidebarPanel(
                    fileInput("MahalanobisFile", label = "Please upload a data file here", accept = c(".csv", ".rds", ".xlsx")),
-                   selectInput("method_selMahalanobis", label = "Method selection",
-                               choices = c("Mahalanobis - tetrachoric correlation (TMD)" = "MAH_TMD"
-                               ),
-                               selected = "MAH_TMF"),
                    selectInput("init_traitMahalanobis", label = "Initial trait selection",
                                choices = c("All traits" = "ALL",
                                            "Only right side" = "RIGHT",
@@ -171,14 +170,12 @@ ui <- fluidPage(
                )
                
       ),
+      #Gower Analysis UI ---------------------------------
       tabPanel("Analysis - Gower",
                sidebarLayout(
                  sidebarPanel = sidebarPanel(
                    fileInput("GowerFile", label = "Please upload a data file here", accept = c(".csv", ".rds", ".xlsx")),
-                   selectInput("method_selGower", label = "Method selection",
-                               choices = c("Gower" = "gower"
-                               ),
-                               selected = "gower"),
+                   numericInput("gowerMissingData", label = "Delete rows with < missing data", value = 0.7),
                    selectInput("init_traitGower", label = "Initial trait selection",
                                choices = c("All traits" = "ALL",
                                            "Only right side" = "RIGHT",
@@ -228,6 +225,7 @@ ui <- fluidPage(
                )
                
       ),
+      #Help UI ---------------------------------
       tabPanel("Help",
                HTML("<p><u>Overview</u></p>"),
                HTML("<p>dentalAffinities provides tools for analysing non-metric data using Mean Measure of Divergence, Mahalanobis D 2 and Gower coefficients. While we do our best to ensure that the software provides theoretically grounded and accurate results, 
@@ -318,6 +316,7 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   
+  #Descriptives Logic ---------------------------------
   v <- reactiveValues(descUpload = NULL)
   
   
@@ -325,17 +324,6 @@ server <- function(input, output, session) {
     v$descUpload <- "yes"
   })
   
-  
-  output$downloadTemplate <- downloadHandler(
-    filename <- function() {
-      paste("Template_file_dentalAffinities.xlsx")
-    },
-    
-    content <- function(file) {
-      file.copy("Template_file_dentalAffinities.xlsx", file)
-    },
-    contentType = ""
-  )
   
   
   inputDescData <- reactive({
@@ -397,7 +385,7 @@ server <- function(input, output, session) {
     if (is.null(myData)) return(NULL)
     
     if (input$groupTrait=="nogroup"){
-
+      
       thresholdValues <- myData[1,]
       
       myData <- myData[-1,]
@@ -409,44 +397,34 @@ server <- function(input, output, session) {
         for (i in 4:ncol(myData)){
           myData1 <- myData %>%
             filter(!is.na(.[[i]])) %>%
-            count(GROUP1, .[[i]]) 
+            count(.[[i]]) 
           
-          colnames(myData1) <- c("GROUP1", colnames(myData)[i], "n")
+          colnames(myData1) <- c(colnames(myData)[i], "n")
           
           myData1[2] <- as.numeric(unlist(myData1[2]))
           
-          uniquelist <- myData$GROUP1 %>%
-            unique()
           
-          uniquescores <- myData1[2] %>%
+          uniquescores <- myData1[1] %>%
             unique() %>%
             unlist() %>%
             sort()
           
-          newData <- as.data.frame(matrix(ncol = length(uniquelist)+2, nrow = length(uniquescores)))
-          colnames(newData) <- c("Trait", "Score", uniquelist)
+          newData <- as.data.frame(matrix(ncol = 3, nrow = length(uniquescores)))
+          colnames(newData) <- c("Trait", "Score", "Count")
           
+
           
           for (j in 1:length(uniquescores)){
             newData$Trait[j] <- as.character(colnames(myData)[i])
             newData$Score[j] <- uniquescores[j]
           }
           
-          for (j in 3:(length(uniquelist)+2)){
+
             for (k in 1:length(uniquescores)){
-              cname <- colnames(newData)[j]
-              ourScore <- uniquescores[k]
-              ourN <- myData1 %>%
-                filter(GROUP1==cname) %>%
-                filter_at(2, all_vars(.==ourScore)) %>%
-                pull(3)
-              if (identical(ourN, integer(0))){
-                newData[k,j] <- 0
-              } else {
-                newData[k,j] <- ourN
-              }
+              newData[k,3] <- myData1[k,2]
             }
-          }
+          
+
           if (i==4){
             finalData <- newData
           } else {
@@ -462,6 +440,9 @@ server <- function(input, output, session) {
       
       
     }
+    
+    
+    
     
     if (input$groupTrait=="group 1"){
       
@@ -687,40 +668,7 @@ server <- function(input, output, session) {
     di <- doDescriptives()$finalData
     if (is.null(di)) "Upload data" else di
   }
-  
-  # cor_table <- function() {
-  # 
-  #   rowCallback <- c(
-  #     "function(row, data){",
-  #     "  for(var i=0; i<data.length; i++){",
-  #     "    if(data[i] === null){",
-  #     "      $('td:eq('+i+')', row).html('NA')",
-  #     "        .css({'color': 'rgb(151,151,151)', 'font-style': 'italic'});",
-  #     "    }",
-  #     "  }",
-  #     "}"
-  #   )
-  # 
-  #   di <-  doCorrelation()$corMatrix
-  # 
-  #   if (is.null(di)) {
-  #     x <- data.frame("Upload data")
-  #     colnames(x) <- "Please upload some data"
-  #     x
-  #   } else {
-  # 
-  # 
-  #     x <- datatable(data, options = list(rowCallback = JS(rowCallback))) %>% formatStyle(
-  #       columns = colnames(data),
-  #       backgroundColor = styleInterval(c(input$corFlag, 0.999, 1.001, 1000), c('white', 'lightgreen', 'lightblue', 'lightyellow', 'red'))
-  #     ) %>%
-  #       formatSignif(
-  #         columns = colnames(data),
-  #         digits = 3
-  #       )
-  #     x
-  #   }
-  # }
+
   
   
   
@@ -795,7 +743,7 @@ server <- function(input, output, session) {
   )
   
   
-
+  #MMD Logic ---------------------------------
   observe({
     
     inFile <- input$MMDFile
@@ -992,17 +940,15 @@ server <- function(input, output, session) {
       if (input$groupChoiceMMD=="group2"){tmp <- get_Mn_Mp_group_2(df)}
       if (input$groupChoiceMMD=="bothgroups"){tmp <- get_Mn_Mp_bothgroups(df)}
       
-      
+    
       temp <- tmp
       ind <- which(!apply(temp$Mn == 0, 2, any))
       temp$Mn <- temp$Mn[,ind]
       
+
       if(dim(temp$Mn)[2]>2){
         res <- dentalAffinities::calculateMMD(data.frame(tmp$Mn), as.data.frame(tmp$Mp), thetadiff, theta)
       }
-    }
-    if (selected[1] == "MAH") {
-      res <- dentalAffinities::calculateD2(df)
     }
     res
   })
@@ -1176,7 +1122,8 @@ server <- function(input, output, session) {
   )
   
   
-  #Mahalanobis functions
+  #Mahalanobis Logic ---------------------------------
+  
   
   observe({
     
@@ -1359,39 +1306,12 @@ server <- function(input, output, session) {
     
     df <- dataInputMahalanobis()
     
-    selected <- strsplit(input$method_selMahalanobis, split="_")[[1]]
-    if (selected[1] == "MMD") {
-      theta <- dentalAffinities::theta_Anscombe
-      if (selected[2] == "FRE")
-        theta <- dentalAffinities::theta_Freeman
-      
-      thetadiff <- dentalAffinities::thetadiff_uncorrected
-      if (selected[3] == "FRE")
-        thetadiff <- dentalAffinities::thetadiff_Freeman
-      if (selected[3] == "GRE")
-        thetadiff <- dentalAffinities::thetadiff_Grewal
-      
-      if (input$groupChoiceMahalanobis=="group1"){tmp <- get_Mn_Mp_group_1(df)}
-      if (input$groupChoiceMahalanobis=="group2"){tmp <- get_Mn_Mp_group_2(df)}
-      if (input$groupChoiceMahalanobis=="bothgroups"){tmp <- get_Mn_Mp_bothgroups(df)}
-      
-      
-      temp <- tmp
-      ind <- which(!apply(temp$Mn == 0, 2, any))
-      temp$Mn <- temp$Mn[,ind]
-      
-      if(dim(temp$Mn)[2]>2){
-        res <- dentalAffinities::calculateMMD(data.frame(tmp$Mn), as.data.frame(tmp$Mp), thetadiff, theta)
-      }
-      
-      res <- dentalAffinities::calculateMMD(data.frame(tmp$Mn), as.data.frame(tmp$Mp), thetadiff, theta)
-    }
-    if (selected[1] == "MAH") {
       if (input$groupChoiceMahalanobis=="group1"){res <- calculateD2_group1(df)}
       if (input$groupChoiceMahalanobis=="group2"){res <- calculateD2_group2(df)}
       if (input$groupChoiceMahalanobis=="bothgroups"){res <- calculateD2_bothgroups(df)}
-    }
+    
     res
+    
   })
   
   # table
@@ -1552,12 +1472,8 @@ server <- function(input, output, session) {
     }
   )
   
-
+  #Gower Logic ---------------------------------
   
-  
-  
-  #Gower functions
-
   observe({
     
     inFile <- input$GowerFile
@@ -1651,7 +1567,7 @@ server <- function(input, output, session) {
       df <- df[,1:(2 + (i-1)/2)]
     }
     
-    df<-df[which(rowMeans(!is.na(df)) > 0.7), ]
+    df<-df[which(rowMeans(!is.na(df)) > input$gowerMissingData), ]
     
     # binarisation
     THRESHOLD = df[1,]
@@ -1737,6 +1653,7 @@ server <- function(input, output, session) {
 
   ggMDSGower_plot <- function(){
     di <- dataInputGower()
+    
     if (is.null(di)) {
       return(NULL)
     }
@@ -1744,18 +1661,28 @@ server <- function(input, output, session) {
     y <- vegdist(di[,4:ncol(di)], method="gower", na.rm = TRUE)
     mds <- cmdscale(y)
     
+    combinedGroup <- rep(NA, nrow(di))
+    for (i in 1:nrow(di)){
+      combinedGroup[i] <- paste0(di[i,2], "+", di[i,3])
+    }
+    di$combinedGroup <- combinedGroup
+    di <- di[,c(1:3, ncol(di), 4:(ncol(di)-1))]
+    colnames(di)[1:4] <- c("id", "group1", "group2", "bothgroups")
+    
     # Convert MDS result to data frame
-    mds_df <- data.frame(x = mds[,1], y = mds[,2], group = di$GROUP1)
     
-    # Create ggplot MDS plot with ellipses
-    # p <- ggplot(mds_df, aes(x, y, color = group)) +
-    #   geom_point() +
-    #   stat_ellipse(geom = "polygon", level = 0.95, alpha = 0.2) +  # Add ellipses
-    #   scale_color_viridis_d() +  # Use colorblind-friendly palette
-    #   labs(title = "MDS Plot based on Gower Dissimilarities",
-    #        x = "MDS1", y = "MDS2") +
-    #   theme_bw()  # Set theme to have a white background
     
+    if (input$groupChoiceGower=="group1"){
+      mds_df <- data.frame(x = mds[,1], y = mds[,2], group = di$group1)
+    } 
+    
+    if (input$groupChoiceGower=="group2"){
+      mds_df <- data.frame(x = mds[,1], y = mds[,2], group = di$group2)
+    } 
+    
+    if (input$groupChoiceGower=="bothgroups"){
+      mds_df <- data.frame(x = mds[,1], y = mds[,2], group = di$bothgroups)
+    } 
     
     
     p <- ggplot(mds_df, aes(x, y, color = group)) +
@@ -1771,7 +1698,6 @@ server <- function(input, output, session) {
       theme(panel.border = element_rect(linetype = "solid", fill = NA),
             panel.background = element_rect(fill = "white")) +
       theme(axis.text.x = element_text(angle = 0, hjust = 1))
-    
     
     print(p)
   }
@@ -1897,7 +1823,6 @@ server <- function(input, output, session) {
   )
 
   
-  
   output$permDispGowerPDF <- downloadHandler(
     filename = "permDispGower.html",
     content = function(file) {
@@ -1944,7 +1869,6 @@ server <- function(input, output, session) {
   )
   
   
-  
   output$percentMD <- renderUI({
 
     df <- dataInputGower()
@@ -1955,6 +1879,22 @@ server <- function(input, output, session) {
   })
   
 
+  #Help Logic ---------------------------------
+  
+  
+  output$downloadTemplate <- downloadHandler(
+    filename <- function() {
+      paste("Template_file_dentalAffinities.xlsx")
+    },
+    
+    content <- function(file) {
+      file.copy("Template_file_dentalAffinities.xlsx", file)
+    },
+    contentType = ""
+  )
+  
+  
+  #Helper Functions ---------------------------------
   
   get_Mn_Mp_group_1 <- function(binary_trait_data) {
     colnames(binary_trait_data)[1:3] <- c("id", "group1", "group2")
@@ -2326,13 +2266,6 @@ server <- function(input, output, session) {
     
     list(MMDMatrix = D2, SDMatrix = NULL, SigMatrix = NULL)
   }
-  
-  
-  
-  
-  
-  
-  
   
 }
 
